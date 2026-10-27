@@ -1,0 +1,6 @@
+{
+  "name": "Rotex - Rotación Inteligente de Leads Fox CRM",
+  "description": "Plataforma de rotación continua inteligente para leads de Fox CRM con reglas de 30 min, tareas a 5h y reasignación por marca.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,714 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Header } from './components/Header';
+import { VendorsBar } from './components/VendorsBar';
+import { VendorsTable } from './components/VendorsTable';
+import { LeadsBoard } from './components/LeadsBoard';
+import { RotationLogsView } from './components/RotationLogsView';
+import { LeadDetailModal } from './components/LeadDetailModal';
+import { TaskModal } from './components/TaskModal';
+import { ClosureModal } from './components/ClosureModal';
+import { GoogleSheetSyncModal } from './components/GoogleSheetSyncModal';
+import { FoxCrmImportModal } from './components/FoxCrmImportModal';
+import { ToastContainer } from './components/ToastContainer';
+import { VendorDashboard } from './components/VendorDashboard';
+import { SupervisorDashboard } from './components/SupervisorDashboard';
+import { GerenciaDashboard } from './components/GerenciaDashboard';
+import { RankingsView } from './components/RankingsView';
+
+import {
+  Lead,
+  Vendor,
+  RotationLog,
+  GoogleSheetConfig,
+  VendorStatus,
+  ClosureOutcome,
+  ScheduledTask,
+  UserSession,
+} from './types/crm';
+import {
+  getStoredLeads,
+  saveStoredLeads,
+  getStoredVendors,
+  saveStoredVendors,
+  getStoredRotationLogs,
+  saveStoredRotationLogs,
+  getStoredSheetConfig,
+  saveStoredSheetConfig,
+  subscribeToSync,
+  runRotationHeartbeat,
+} from './services/storageService';
+import { processLeadClosure, getOutcomeLabel, assignLeadToVendor } from './utils/rotationEngine';
+import { sendLeadPushNotification } from './utils/pushNotifications';
+import { playSaleFanfare, playAssignChime } from './utils/soundAlerts';
+
+export default function App() {
+  // Current user session: defaults to Administración with ability to switch to any of the 4 roles
+  const [currentSession, setCurrentSession] = useState<UserSession>({
+    id: 'usr_admin',
+    name: 'Administración General',
+    role: 'administracion',
+  });
+
+  const [activeTab, setActiveTab] = useState<string>('leads');
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [rotationLogs, setRotationLogs] = useState<RotationLog[]>([]);
+  const [sheetConfig, setSheetConfig] = useState<GoogleSheetConfig>(getStoredSheetConfig());
+
+  // Filter states
+  const [currentVendorFilter, setCurrentVendorFilter] = useState<string>('all');
+  const [vendorStatusFilter, setVendorStatusFilter] = useState<'all' | VendorStatus>('all');
+  const [vendorVolumeFilter, setVendorVolumeFilter] = useState<'all' | 'available' | 'full' | 'zero'>('all');
+  const [vendorBrandFilter, setVendorBrandFilter] = useState<string>('all');
+  const [vendorSearchQuery, setVendorSearchQuery] = useState<string>('');
+
+  // Modals
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
+  const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
+  const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
+
+  // Load state from local storage & server
+  const reloadState = useCallback(() => {
+    const loadedLeads = getStoredLeads();
+    const loadedVendors = getStoredVendors();
+    const loadedLogs = getStoredRotationLogs();
+    const loadedConfig = getStoredSheetConfig();
+
+    // Recompute live active assignments for each vendor
+    const counts = new Map<string, number>();
+    loadedLeads.forEach((l) => {
+      if (l.currentVendorId && (l.status === 'pending_contact' || l.status === 'in_progress' || l.status === 'reopened')) {
+        counts.set(l.currentVendorId, (counts.get(l.currentVendorId) || 0) + 1);
+      }
+    });
+
+    const updatedVendors = loadedVendors.map((v) => ({
+      ...v,
+      activeAssignments: counts.get(v.id) || 0,
+    }));
+
+    setLeads(loadedLeads);
+    setVendors(updatedVendors);
+    setRotationLogs(loadedLogs);
+    setSheetConfig(loadedConfig);
+
+    // Keep selected lead synced if detail modal is open
+    if (selectedLeadForDetail) {
+      const fresh = loadedLeads.find((l) => l.id === selectedLeadForDetail.id);
+      if (fresh) setSelectedLeadForDetail(fresh);
+    }
+  }, [selectedLeadForDetail]);
+
+  // Initial load & subscription to local BroadcastChannel and multi-device SSE
+  useEffect(() => {
+    reloadState();
+    const unsub = subscribeToSync(reloadState);
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource('/api/stream');
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'leads_updated' || data.type === 'vendors_updated' || data.type === 'new_rotation_log') {
+            reloadState();
+          }
+        } catch {
+          // Ignore
+        }
+      };
+    } catch {
+      // Fallback
+    }
+
+    return () => {
+      unsub();
+      if (eventSource) eventSource.close();
+    };
+  }, [reloadState]);
+
+  // Background SLA Rotation Heartbeat: checks every 4 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const { rotatedCount } = runRotationHeartbeat();
+      if (rotatedCount > 0) {
+        reloadState();
+      }
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [reloadState]);
+
+  // WhatsApp click handler
+  const handleWhatsAppClick = (lead: Lead) => {
+    const cleanPhone = (lead.phone || '').replace(/[^0-9]/g, '');
+    const greeting = encodeURIComponent(
+      `Hola ${lead.clientName}, ¿cómo estás? Te contacto de la concesionaria oficial ${lead.brand} respecto a tu consulta por el ${lead.modelInterest || 'vehículo'}. ¿Seguís interesado/a en la entrega inmediata o financiación?`
+    );
+
+    const waUrl = `https://wa.me/${cleanPhone}?text=${greeting}`;
+    window.open(waUrl, '_blank');
+
+    if (!lead.hasContacted) {
+      const nowIso = new Date().toISOString();
+      const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
+      const updatedComment = {
+        id: 'cmt_' + Date.now(),
+        leadId: lead.id,
+        authorId: currentVendor?.id || 'vendedor',
+        authorName: currentVendor?.name || 'Asesor',
+        authorRole: 'vendedor' as const,
+        type: 'gestion' as const,
+        text: `Primera gestión realizada por WhatsApp a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Plazo de 30 minutos cumplido. Tenés 5 horas para programar tu próxima tarea.`,
+        createdAt: nowIso,
+      };
+
+      const updatedLead: Lead = {
+        ...lead,
+        hasContacted: true,
+        firstGestionAt: nowIso,
+        lastGestionAt: nowIso,
+        status: 'in_progress',
+        comments: [updatedComment, ...lead.comments],
+      };
+
+      const nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
+      saveStoredLeads(nextLeads);
+      reloadState();
+
+      sendLeadPushNotification(
+        'Gestión WhatsApp Registrada',
+        `Primer contacto registrado con ${lead.clientName}. Recordá agendar la próxima tarea en menos de 5 horas.`,
+        'assignment'
+      );
+    }
+  };
+
+  // Call click handler
+  const handleCallClick = (lead: Lead) => {
+    const nowIso = new Date().toISOString();
+    const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
+
+    const updatedComment = {
+      id: 'cmt_' + Date.now(),
+      leadId: lead.id,
+      authorId: currentVendor?.id || 'vendedor',
+      authorName: currentVendor?.name || 'Asesor',
+      authorRole: 'vendedor' as const,
+      type: 'gestion' as const,
+      text: `Llamada telefónica registrada al número ${lead.phone} por ${currentVendor?.name || 'Asesor'}.`,
+      createdAt: nowIso,
+    };
+
+    const updatedLead: Lead = {
+      ...lead,
+      hasContacted: true,
+      firstGestionAt: lead.firstGestionAt || nowIso,
+      lastGestionAt: nowIso,
+      status: 'in_progress',
+      comments: [updatedComment, ...lead.comments],
+    };
+
+    const nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
+    saveStoredLeads(nextLeads);
+    reloadState();
+
+    sendLeadPushNotification(
+      'Llamada Registrada',
+      `Gestión guardada para ${lead.clientName}.`,
+      'info'
+    );
+  };
+
+  // Schedule Next Task (enforces <= 5 hours)
+  const handleScheduleTask = (taskData: Omit<ScheduledTask, 'id' | 'createdAt' | 'completed'>) => {
+    if (!selectedLeadForTask) return;
+
+    const lead = selectedLeadForTask;
+    const nowIso = new Date().toISOString();
+    const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
+
+    const newTask: ScheduledTask = {
+      id: 'tsk_' + Date.now(),
+      description: taskData.description,
+      type: taskData.type,
+      dueAt: taskData.dueAt,
+      createdAt: nowIso,
+      completed: false,
+    };
+
+    const dueFormatted = new Date(taskData.dueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const taskComment = {
+      id: 'cmt_' + Date.now(),
+      leadId: lead.id,
+      authorId: currentVendor?.id || 'vendedor',
+      authorName: currentVendor?.name || 'Asesor',
+      authorRole: 'vendedor' as const,
+      type: 'tarea' as const,
+      text: `Próxima tarea programada [${taskData.type.toUpperCase()}]: "${taskData.description}" con vencimiento a las ${dueFormatted} (≤ 5h). Lead retenido.`,
+      createdAt: nowIso,
+    };
+
+    const updatedLead: Lead = {
+      ...lead,
+      hasContacted: true,
+      status: 'in_progress',
+      activeTaskDeadline: taskData.dueAt,
+      currentTask: newTask,
+      comments: [taskComment, ...lead.comments],
+    };
+
+    const nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
+    saveStoredLeads(nextLeads);
+    reloadState();
+
+    sendLeadPushNotification(
+      'Tarea Programada (Lead Retenido)',
+      `Próxima tarea agendada para ${lead.clientName} a las ${dueFormatted}.`,
+      'assignment'
+    );
+
+    setSelectedLeadForTask(null);
+  };
+
+  // Closure handling (Venta or Non-Sale with Automatic Reopening)
+  const handleConfirmClosure = (outcome: ClosureOutcome, notes: string) => {
+    if (!selectedLeadForClosure) return;
+
+    const lead = selectedLeadForClosure;
+    const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
+    if (!currentVendor) return;
+
+    const { updatedLead, rotationLog, reopened } = processLeadClosure(
+      lead,
+      currentVendor,
+      outcome,
+      notes,
+      vendors,
+      leads
+    );
+
+    let nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
+
+    let nextVendors = vendors;
+    if (outcome === 'venta') {
+      nextVendors = vendors.map((v) =>
+        v.id === currentVendor.id ? { ...v, totalConversions: (v.totalConversions || 0) + 1 } : v
+      );
+      playSaleFanfare();
+      sendLeadPushNotification(
+        '¡VENTA CONFIRMADA!',
+        `${currentVendor.name} cerró la venta de ${lead.clientName} (${lead.brand} ${lead.modelInterest})`,
+        'sale'
+      );
+    } else if (reopened && rotationLog) {
+      saveStoredRotationLogs([rotationLog, ...rotationLogs]);
+      sendLeadPushNotification(
+        'Dato Reabierto y Rotado',
+        `Lead ${lead.clientName} se cerró como [${getOutcomeLabel(outcome)}]. Reabierto y asignado a ${rotationLog.toVendorName} (${lead.brand}).`,
+        'reopened'
+      );
+    }
+
+    saveStoredLeads(nextLeads);
+    saveStoredVendors(nextVendors);
+    reloadState();
+    setSelectedLeadForClosure(null);
+  };
+
+  // Add comment to lead thread
+  const handleAddComment = (leadId: string, text: string) => {
+    const targetLead = leads.find((l) => l.id === leadId);
+    if (!targetLead) return;
+
+    const currentVendor = vendors.find((v) => v.id === targetLead.currentVendorId);
+    const newComment = {
+      id: 'cmt_' + Date.now(),
+      leadId,
+      authorId: currentSession.id,
+      authorName: currentSession.name,
+      authorRole: currentSession.role,
+      type: 'comentario' as const,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedLead: Lead = {
+      ...targetLead,
+      comments: [newComment, ...targetLead.comments],
+    };
+
+    const nextLeads = leads.map((l) => (l.id === leadId ? updatedLead : l));
+    saveStoredLeads(nextLeads);
+    reloadState();
+  };
+
+  // Toggle vendor activity status (Activo, Pausa, Inactivo)
+  const handleToggleVendorStatus = (vendorId: string, currentStatus: VendorStatus) => {
+    let nextStatus: VendorStatus = 'active';
+    if (currentStatus === 'active') nextStatus = 'paused';
+    else if (currentStatus === 'paused') nextStatus = 'inactive';
+    else nextStatus = 'active';
+
+    const updated = vendors.map((v) => (v.id === vendorId ? { ...v, status: nextStatus } : v));
+    saveStoredVendors(updated);
+    reloadState();
+
+    sendLeadPushNotification(
+      'Estado de Asesor Actualizado',
+      `Asesor ${updated.find((v) => v.id === vendorId)?.name} ahora en estado: ${
+        nextStatus === 'active' ? 'Activo' : nextStatus === 'paused' ? 'En Pausa' : 'Inactivo'
+      }`,
+      'info'
+    );
+  };
+
+  // Toggle all vendors under a supervisor
+  const handleToggleSupervisorTeamStatus = (supervisorName: string, activate: boolean) => {
+    const nextStatus: VendorStatus = activate ? 'active' : 'paused';
+    const updated = vendors.map((v) =>
+      v.supervisor.trim().toLowerCase() === supervisorName.trim().toLowerCase()
+        ? { ...v, status: nextStatus }
+        : v
+    );
+    saveStoredVendors(updated);
+    reloadState();
+
+    sendLeadPushNotification(
+      'Equipo Actualizado',
+      `Se ${activate ? 'activaron' : 'pausaron'} los asesores del equipo de ${supervisorName}.`,
+      'info'
+    );
+  };
+
+  // Add new vendor to a supervisor team
+  const handleAddNewVendorToTeam = (newVendorData: {
+    name: string;
+    brand: string;
+    phone?: string;
+    maxAssignments: number;
+  }) => {
+    const supervisorName = currentSession.supervisorName || 'Mariana López';
+    const newVendor: Vendor = {
+      id: 'v_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      name: newVendorData.name,
+      brand: newVendorData.brand,
+      supervisor: supervisorName,
+      status: 'active',
+      maxAssignments: newVendorData.maxAssignments || 15,
+      activeAssignments: 0,
+      phone: newVendorData.phone || '',
+      totalAssignedCount: 0,
+      totalConversions: 0,
+    };
+
+    const updated = [newVendor, ...vendors];
+    saveStoredVendors(updated);
+    reloadState();
+
+    sendLeadPushNotification(
+      'Nuevo Asesor Registrado',
+      `${newVendor.name} fue agregado a la nómina del equipo de ${supervisorName} (${newVendor.brand}).`,
+      'assignment'
+    );
+  };
+
+  // Update vendor capacity
+  const handleUpdateVendorMaxCapacity = (vendorId: string, newMax: number) => {
+    const updated = vendors.map((v) => (v.id === vendorId ? { ...v, maxAssignments: newMax } : v));
+    saveStoredVendors(updated);
+    reloadState();
+  };
+
+  // VENDOR: Request Lead Module ("Pedir Dato")
+  const handleVendorRequestLead = (vendor: Vendor) => {
+    // Look for an unassigned lead for this brand
+    const normBrand = vendor.brand.trim().toLowerCase();
+    const candidateLead = leads.find((l) => {
+      const matchBrand =
+        l.brand.trim().toLowerCase() === normBrand ||
+        l.brand.trim().toLowerCase().includes(normBrand) ||
+        normBrand.includes(l.brand.trim().toLowerCase());
+      const isUnassigned = !l.currentVendorId || l.status === 'expired_unassigned';
+      return matchBrand && isUnassigned;
+    });
+
+    if (candidateLead) {
+      const { lead: assignedLead, log } = assignLeadToVendor(
+        candidateLead,
+        vendor,
+        'requested_by_vendor',
+        `Solicitado por ${vendor.name} (${vendor.brand})`,
+        new Date().toISOString()
+      );
+
+      const nextLeads = leads.map((l) => (l.id === candidateLead.id ? assignedLead : l));
+      saveStoredLeads(nextLeads);
+      saveStoredRotationLogs([log, ...rotationLogs]);
+      reloadState();
+
+      playAssignChime();
+      sendLeadPushNotification(
+        '¡Nuevo Dato Asignado!',
+        `Se te asignó el lead ${candidateLead.clientName} (${candidateLead.brand} ${candidateLead.modelInterest}). Tenés 30 minutos para gestionarlo.`,
+        'assignment'
+      );
+    } else {
+      // If none is unassigned, check if there is an uncontacted lead from an inactive vendor of the same brand
+      const inactiveVendorIds = new Set(
+        vendors.filter((v) => v.status === 'inactive' || v.status === 'paused').map((v) => v.id)
+      );
+      const reassignableLead = leads.find((l) => {
+        const matchBrand =
+          l.brand.trim().toLowerCase() === normBrand ||
+          l.brand.trim().toLowerCase().includes(normBrand) ||
+          normBrand.includes(l.brand.trim().toLowerCase());
+        const isWithInactive = l.currentVendorId && inactiveVendorIds.has(l.currentVendorId) && !l.hasContacted;
+        return matchBrand && isWithInactive;
+      });
+
+      if (reassignableLead) {
+        const { lead: assignedLead, log } = assignLeadToVendor(
+          reassignableLead,
+          vendor,
+          'requested_by_vendor',
+          `Reasignado por solicitud de ${vendor.name} desde asesor en pausa`,
+          new Date().toISOString()
+        );
+
+        const nextLeads = leads.map((l) => (l.id === reassignableLead.id ? assignedLead : l));
+        saveStoredLeads(nextLeads);
+        saveStoredRotationLogs([log, ...rotationLogs]);
+        reloadState();
+
+        playAssignChime();
+        sendLeadPushNotification(
+          '¡Dato Reasignado a tu Bandeja!',
+          `Se te asignó el lead ${reassignableLead.clientName} (${reassignableLead.brand}). Tenés 30 minutos para contactarlo.`,
+          'assignment'
+        );
+      } else {
+        alert(
+          `En este momento no hay datos pendientes en espera para tu marca (${vendor.brand}). Apenas ingrese un nuevo dato desde Fox CRM o rote por vencimiento, se te asignará automáticamente.`
+        );
+      }
+    }
+  };
+
+  // Find current vendor object if session is vendedor
+  const loggedVendor = vendors.find((v) => v.id === currentSession.vendorId);
+  const vendorAssignedLeads = loggedVendor
+    ? leads.filter((l) => l.currentVendorId === loggedVendor.id)
+    : [];
+
+  const activeLeadsCount = leads.filter(
+    (l) => l.status === 'pending_contact' || l.status === 'in_progress' || l.status === 'reopened'
+  ).length;
+
+  const activeVendorsCount = vendors.filter((v) => v.status === 'active').length;
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
+      {/* Top Bar Header with Role-Based Navigation & Session Switcher */}
+      <Header
+        currentSession={currentSession}
+        onChangeSession={(sess) => {
+          setCurrentSession(sess);
+          if (sess.role === 'vendedor') setActiveTab('assigned');
+          else if (sess.role === 'supervisor') setActiveTab('monitoring');
+          else if (sess.role === 'gerencia') setActiveTab('metrics');
+          else setActiveTab('leads');
+        }}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        activeLeadsCount={activeLeadsCount}
+        activeVendorsCount={activeVendorsCount}
+        vendors={vendors}
+      />
+
+      {/* Main View Port according to Role */}
+      <main className="flex-1">
+        {/* ==================== 1. VENDEDORES VIEW ==================== */}
+        {currentSession.role === 'vendedor' && loggedVendor && (
+          <VendorDashboard
+            currentVendor={loggedVendor}
+            assignedLeads={vendorAssignedLeads}
+            allVendors={vendors}
+            allLeads={leads}
+            onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
+            onOpenTaskModal={(lead) => setSelectedLeadForTask(lead)}
+            onOpenClosureModal={(lead) => setSelectedLeadForClosure(lead)}
+            onWhatsAppClick={handleWhatsAppClick}
+            onCallClick={handleCallClick}
+            onRequestLead={handleVendorRequestLead}
+            onToggleStatus={handleToggleVendorStatus}
+          />
+        )}
+
+        {/* ==================== 2. SUPERVISORES VIEW ==================== */}
+        {currentSession.role === 'supervisor' && (
+          <SupervisorDashboard
+            supervisorName={currentSession.supervisorName || 'Mariana López'}
+            vendors={vendors}
+            allLeads={leads}
+            onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
+            onOpenImportModal={() => setIsImportModalOpen(true)}
+            onToggleVendorStatus={handleToggleVendorStatus}
+            onUpdateVendorCapacity={handleUpdateVendorMaxCapacity}
+            onAddNewVendorToTeam={handleAddNewVendorToTeam}
+            onWhatsAppClick={handleWhatsAppClick}
+            onCallClick={handleCallClick}
+          />
+        )}
+
+        {/* ==================== 3. GERENCIA VIEW ==================== */}
+        {currentSession.role === 'gerencia' && (
+          <GerenciaDashboard
+            vendors={vendors}
+            leads={leads}
+            onOpenImportModal={() => setIsImportModalOpen(true)}
+            onToggleVendorStatus={handleToggleVendorStatus}
+            onToggleSupervisorTeamStatus={handleToggleSupervisorTeamStatus}
+            onOpenLeadDetail={(lead) => setSelectedLeadForDetail(lead)}
+          />
+        )}
+
+        {/* ==================== 4. ADMINISTRACIÓN VIEW ==================== */}
+        {currentSession.role === 'administracion' && (
+          <>
+            {activeTab === 'leads' && (
+              <LeadsBoard
+                leads={leads}
+                vendors={vendors}
+                currentVendorFilter={currentVendorFilter}
+                onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
+                onOpenTaskModal={(lead) => setSelectedLeadForTask(lead)}
+                onOpenClosureModal={(lead) => setSelectedLeadForClosure(lead)}
+                onWhatsAppClick={handleWhatsAppClick}
+                onCallClick={handleCallClick}
+                onOpenImportModal={() => setIsImportModalOpen(true)}
+                onOpenSyncModal={() => setIsSyncModalOpen(true)}
+              />
+            )}
+
+            {activeTab === 'vendors' && (
+              <div className="space-y-4">
+                <VendorsBar
+                  vendors={vendors}
+                  statusFilter={vendorStatusFilter}
+                  setStatusFilter={setVendorStatusFilter}
+                  volumeFilter={vendorVolumeFilter}
+                  setVolumeFilter={setVendorVolumeFilter}
+                  brandFilter={vendorBrandFilter}
+                  setBrandFilter={setVendorBrandFilter}
+                  searchQuery={vendorSearchQuery}
+                  setSearchQuery={setVendorSearchQuery}
+                  onOpenSyncModal={() => setIsSyncModalOpen(true)}
+                  onToggleStatus={handleToggleVendorStatus}
+                />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+                  <VendorsTable
+                    vendors={vendors}
+                    onToggleStatus={handleToggleVendorStatus}
+                    onUpdateMaxCapacity={handleUpdateVendorMaxCapacity}
+                    onOpenSyncModal={() => setIsSyncModalOpen(true)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'rankings' && (
+              <RankingsView vendors={vendors} leads={leads} showSupervisorRanking={true} />
+            )}
+
+            {activeTab === 'history' && (
+              <RotationLogsView
+                logs={rotationLogs}
+                onSelectLead={(leadId) => {
+                  const lead = leads.find((l) => l.id === leadId);
+                  if (lead) {
+                    setSelectedLeadForDetail(lead);
+                  }
+                }}
+              />
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Floating Push Toast Alerts */}
+      <ToastContainer />
+
+      {/* Modals */}
+      {selectedLeadForDetail && (
+        <LeadDetailModal
+          lead={selectedLeadForDetail}
+          isOpen={true}
+          onClose={() => setSelectedLeadForDetail(null)}
+          onAddComment={handleAddComment}
+          onOpenTaskModal={() => {
+            setSelectedLeadForTask(selectedLeadForDetail);
+            setSelectedLeadForDetail(null);
+          }}
+          onOpenClosureModal={() => {
+            setSelectedLeadForClosure(selectedLeadForDetail);
+            setSelectedLeadForDetail(null);
+          }}
+          onDirectWhatsApp={handleWhatsAppClick}
+          onDirectCall={handleCallClick}
+          currentVendor={vendors.find((v) => v.id === selectedLeadForDetail.currentVendorId)}
+        />
+      )}
+
+      {selectedLeadForTask && (
+        <TaskModal
+          lead={selectedLeadForTask}
+          isOpen={true}
+          onClose={() => setSelectedLeadForTask(null)}
+          onScheduleTask={handleScheduleTask}
+        />
+      )}
+
+      {selectedLeadForClosure && (
+        <ClosureModal
+          lead={selectedLeadForClosure}
+          isOpen={true}
+          onClose={() => setSelectedLeadForClosure(null)}
+          onConfirmClosure={handleConfirmClosure}
+        />
+      )}
+
+      {isSyncModalOpen && (
+        <GoogleSheetSyncModal
+          isOpen={isSyncModalOpen}
+          onClose={() => setIsSyncModalOpen(false)}
+          config={sheetConfig}
+          onSuccess={(newVendors) => {
+            setVendors(newVendors);
+            reloadState();
+          }}
+        />
+      )}
+
+      {isImportModalOpen && (
+        <FoxCrmImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          vendors={vendors}
+          existingLeads={leads}
+          currentUserRole={currentSession.role}
+          currentSupervisorName={currentSession.supervisorName}
+          currentStructure={currentSession.structure}
+          onImportLeads={(newLeads) => {
+            const combined = [...newLeads, ...leads];
+            saveStoredLeads(combined);
+            reloadState();
+            setIsImportModalOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
