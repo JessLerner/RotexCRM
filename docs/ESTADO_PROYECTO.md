@@ -54,10 +54,18 @@ No hace falta borrar ni importar de nuevo la base de prueba: los registros exist
 El importador guarda y muestra la cola, pero todavía no existe el circuito completo de producción. Falta implementar en servidor:
 
 - Asignación automática respetando marca, capacidad y cartera general.
+- Definir y aplicar la carga diaria objetivo por asesor (entre 5 y 10 datos activos por día), independiente del límite visual de 200 registros de Administración.
 - Tiempos de gestión, vencimiento, rotación y reasignación.
 - Cierre real del lead, actividades y auditoría conectados a Supabase.
 - Estados y contadores reales en todos los paneles.
 - Paginación, búsqueda y filtros desde base de datos; el límite de 200 es una contención temporal, no la solución escalable definitiva.
+
+Reglas nuevas acordadas para ese circuito:
+
+- El reloj de rotación solo cuenta horario laboral, de 09:00 a 20:00. El tiempo fuera de esa franja no debe consumir el plazo de gestión.
+- Un vendedor puede registrar `No responde` y reprogramar el contacto hasta cinco veces por el mismo dato.
+- En el sexto intento, ya no podrá reprogramar: se reemplaza la acción por `Rotar dato`, que libera el lead y permite asignarlo a otro vendedor elegible.
+- Los datos cerrados deben conservarse con su motivo, fecha, vendedor y trazabilidad; salen de la bandeja activa y pasan a historial/reportes, no se eliminan.
 
 ### 2. Gestión de personas y estructura
 
@@ -67,14 +75,21 @@ El importador guarda y muestra la cola, pero todavía no existe el circuito comp
 - Supervisor: conservar un único botón de alta y no pedir WhatsApp; pedir correo para invitar.
 - Confirmar visualmente que un asesor desactivado pasa a la pestaña correspondiente y no reaparece activo al recargar.
 
-### 3. Calidad de importación Fox
+### 3. Tableros operativos
+
+- Vendedor: datos asignados, cupo disponible, intentos de contacto y próximas reprogramaciones.
+- Supervisor: cantidad total de datos de su marca/equipo, disponibles para asignar, asignados, próximos a rotar, rotados y cerrados.
+- Gerencia/Administración: los mismos indicadores consolidados por marca, equipo y usuario, sin confundir la muestra visual de 200 con el total existente.
+- Todos los contadores deben provenir de consultas agregadas a Supabase y no del listado visible en pantalla.
+
+### 4. Calidad de importación Fox
 
 - Mostrar cuántas filas quedaron en cola, en revisión y rechazadas, con motivo descargable/corregible.
 - Crear una pantalla de revisión manual para teléfonos inválidos y campos ambiguos.
 - Definir las reglas finales para duplicados, actualizaciones del mismo ID y campos como `Vendido`/`Fecha de Cierre`.
 - Procesar lotes secuencialmente o en servidor si el volumen crece.
 
-### 4. Experiencia de acceso y UI
+### 5. Experiencia de acceso y UI
 
 - Agregar el icono para mostrar u ocultar contraseña.
 - Crear una pantalla independiente para `Olvidé mi contraseña`; hoy el flujo reutiliza el formulario de inicio y resulta confuso.

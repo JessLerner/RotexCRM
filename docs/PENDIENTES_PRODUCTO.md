@@ -16,6 +16,10 @@ La hoja de ruta consolidada está en [ESTADO_PROYECTO.md](ESTADO_PROYECTO.md). E
 ## Datos y operación
 
 - Mostrar los datos Fox importados y luego implementar asignación, vencimiento y rotación reales.
+- La carga diaria de cada vendedor debe poder mantenerse entre 5 y 10 datos; el límite de 200 de Administración no representa una asignación por persona.
+- El tiempo de rotación debe contar únicamente dentro del horario laboral de 09:00 a 20:00.
+- `No responde` permite hasta cinco reprogramaciones por lead; al sexto intento debe ofrecerse `Rotar dato` para liberarlo y reasignarlo.
+- Los cierres se deben conservar con motivo y trazabilidad en historial, no eliminarse.
 - Permitir revisar/corregir filas con teléfono inválido en vez de dejarlas invisibles para la operación.
 - Reemplazar la aceptación aparente de Parte Diario por una integración real antes de volver a habilitarla.
 
