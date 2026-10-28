@@ -465,7 +465,7 @@ export default function App() {
         );
       } else {
         alert(
-          `En este momento no hay datos pendientes en espera para tu marca (${vendor.brand}). Apenas ingrese un nuevo dato desde Fox CRM o rote por vencimiento, se te asignará automáticamente.`
+          'En este momento no hay datos pendientes en espera. Apenas ingrese un nuevo dato o rote por vencimiento, se te asignará automáticamente.'
         );
       }
     }
@@ -519,6 +519,8 @@ export default function App() {
         {/* ==================== 1. VENDEDORES VIEW ==================== */}
         {currentSession.role === 'vendedor' && activeVendor && (
           <VendorDashboard
+            activeTab={activeTab === 'ranking' ? 'ranking' : 'assigned'}
+            onTabChange={setActiveTab}
             currentVendor={activeVendor}
             assignedLeads={vendorAssignedLeads}
             allVendors={profileVendor ? [...vendors, profileVendor] : vendors}

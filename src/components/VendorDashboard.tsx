@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 
 interface VendorDashboardProps {
+  activeTab: 'assigned' | 'ranking';
+  onTabChange: (tab: 'assigned' | 'ranking') => void;
   currentVendor: Vendor;
   assignedLeads: Lead[];
   allVendors: Vendor[];
@@ -35,6 +37,8 @@ interface VendorDashboardProps {
 }
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({
+  activeTab,
+  onTabChange,
   currentVendor,
   assignedLeads,
   allVendors,
@@ -48,7 +52,6 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
   onToggleStatus,
   canReceiveLeads = true,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'assigned' | 'ranking'>('assigned');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress'>('all');
 
@@ -145,7 +148,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
             }`}
           >
             <PlusCircle className="w-4 h-4" />
-            <span>{canReceiveLeads ? 'Pedir Nuevo Dato de Cartera' : 'Pendiente de asignación'}</span>
+            <span>{canReceiveLeads ? 'Pedir Nuevo Dato' : 'Pendiente de asignación'}</span>
           </button>
         </div>
       </div>
@@ -173,11 +176,11 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
       )}
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
+      <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
         <button
-          onClick={() => setActiveSubTab('assigned')}
+          onClick={() => onTabChange('assigned')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
-            activeSubTab === 'assigned'
+            activeTab === 'assigned'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
@@ -186,9 +189,9 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
           <span>Mis Datos Asignados ({currentCount})</span>
         </button>
         <button
-          onClick={() => setActiveSubTab('ranking')}
+          onClick={() => onTabChange('ranking')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
-            activeSubTab === 'ranking'
+            activeTab === 'ranking'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
@@ -198,7 +201,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
         </button>
       </div>
 
-      {activeSubTab === 'ranking' ? (
+      {activeTab === 'ranking' ? (
         <RankingsView vendors={allVendors} leads={allLeads} showSupervisorRanking={false} />
       ) : (
         <div className="space-y-4">
@@ -255,7 +258,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
               <h3 className="text-base font-bold text-slate-900 mb-1">Tu Bandeja de Datos está Vacía</h3>
               <p className="text-xs text-slate-500 mb-5 leading-relaxed">
                 {canReceiveLeads
-                  ? `No tenés datos asignados en este momento. Hacé clic en el botón para solicitar un nuevo dato de la cartera o esperá la próxima rotación automática de tu marca (${currentVendor.brand}).`
+                  ? 'No tenés datos asignados en este momento. Hacé clic en el botón para solicitar un nuevo dato o esperá la próxima rotación automática.'
                   : 'Tu perfil de prueba está activo. La bandeja se llenará cuando tu supervisora te asigne una marca y se importen datos de Fox CRM.'}
               </p>
               <button
