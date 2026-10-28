@@ -64,7 +64,7 @@ export function AuthScreen({ error, passwordSetup = false, onPasswordUpdated }: 
             <button disabled={submitting} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white disabled:opacity-60">{submitting ? 'Ingresando…' : 'Iniciar sesión'}</button>
             <button type="button" onClick={sendRecovery} className="w-full text-sm font-medium text-blue-700 hover:text-blue-900">Olvidé mi contraseña</button>
             {(message || error) && <p className="text-sm text-red-700">{message || error}</p>}
-          </form>}
+          </form>
         )}
       </section>
     </main>
