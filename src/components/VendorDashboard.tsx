@@ -31,6 +31,7 @@ interface VendorDashboardProps {
   onCallClick: (lead: Lead) => void;
   onRequestLead: (vendor: Vendor) => void;
   onToggleStatus: (vendorId: string, currentStatus: Vendor['status']) => void;
+  canReceiveLeads?: boolean;
 }
 
 export const VendorDashboard: React.FC<VendorDashboardProps> = ({
@@ -45,6 +46,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
   onCallClick,
   onRequestLead,
   onToggleStatus,
+  canReceiveLeads = true,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'assigned' | 'ranking'>('assigned');
   const [search, setSearch] = useState('');
@@ -54,7 +56,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
   const currentCount = assignedLeads.filter(
     (l) => l.status === 'pending_contact' || l.status === 'in_progress' || l.status === 'reopened'
   ).length;
-  const hasCapacity = currentCount < maxCap;
+  const hasCapacity = currentCount < maxCap && canReceiveLeads;
   const isActive = currentVendor.status === 'active';
 
   // Filter assigned leads
@@ -118,6 +120,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
             <span>·</span>
             <button
               onClick={() => onToggleStatus(currentVendor.id, currentVendor.status)}
+              disabled={!canReceiveLeads}
               className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded cursor-pointer transition-colors ${
                 isActive
                   ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -142,12 +145,25 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
             }`}
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Pedir Nuevo Dato de Cartera</span>
+            <span>{canReceiveLeads ? 'Pedir Nuevo Dato de Cartera' : 'Pendiente de asignación'}</span>
           </button>
         </div>
       </div>
 
-      {!hasCapacity && (
+      {!canReceiveLeads && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <Inbox className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-bold text-blue-950">Tu acceso de prueba está listo</h3>
+            <p className="text-xs text-blue-800 mt-1 leading-relaxed">
+              Todavía no tenés una marca, equipo ni cartera asignados. Cuando se habilite la nómina comercial,
+              tu supervisora podrá vincularlos y vas a recibir datos desde esta misma bandeja.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!hasCapacity && canReceiveLeads && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
           <span>
@@ -238,15 +254,17 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
               <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-900 mb-1">Tu Bandeja de Datos está Vacía</h3>
               <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-                No tenés datos asignados en este momento. Hacé clic en el botón para solicitar un nuevo dato de la cartera o esperá la próxima rotación automática de tu marca ({currentVendor.brand}).
+                {canReceiveLeads
+                  ? `No tenés datos asignados en este momento. Hacé clic en el botón para solicitar un nuevo dato de la cartera o esperá la próxima rotación automática de tu marca (${currentVendor.brand}).`
+                  : 'Tu perfil de prueba está activo. La bandeja se llenará cuando tu supervisora te asigne una marca y se importen datos de Fox CRM.'}
               </p>
               <button
                 onClick={() => onRequestLead(currentVendor)}
-                disabled={!isActive}
+                disabled={!isActive || !canReceiveLeads}
                 className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>Pedir Nuevo Dato</span>
+                <span>{canReceiveLeads ? 'Pedir Nuevo Dato' : 'Esperando asignación'}</span>
               </button>
             </div>
           ) : filteredLeads.length === 0 ? (

@@ -441,10 +441,26 @@ export default function App() {
     }
   };
 
-  // Find current vendor object if session is vendedor
+  // A vendedor account exists in Supabase before its commercial roster is enabled.
+  // Render an informative workspace instead of a blank screen in that interim state.
   const loggedVendor = vendors.find((v) => v.id === currentSession.vendorId);
-  const vendorAssignedLeads = loggedVendor
-    ? leads.filter((l) => l.currentVendorId === loggedVendor.id)
+  const profileVendor: Vendor | null =
+    currentSession.role === 'vendedor' && !loggedVendor
+      ? {
+          id: currentSession.id,
+          name: currentSession.name,
+          supervisor: 'Pendiente de asignación',
+          brand: 'Sin marca asignada',
+          status: 'active',
+          maxAssignments: 0,
+          activeAssignments: 0,
+          totalAssignedCount: 0,
+          totalConversions: 0,
+        }
+      : null;
+  const activeVendor = loggedVendor || profileVendor;
+  const vendorAssignedLeads = activeVendor
+    ? leads.filter((l) => l.currentVendorId === activeVendor.id)
     : [];
 
   const activeLeadsCount = leads.filter(
@@ -471,11 +487,11 @@ export default function App() {
       {/* Main View Port according to Role */}
       <main className="flex-1">
         {/* ==================== 1. VENDEDORES VIEW ==================== */}
-        {currentSession.role === 'vendedor' && loggedVendor && (
+        {currentSession.role === 'vendedor' && activeVendor && (
           <VendorDashboard
-            currentVendor={loggedVendor}
+            currentVendor={activeVendor}
             assignedLeads={vendorAssignedLeads}
-            allVendors={vendors}
+            allVendors={profileVendor ? [...vendors, profileVendor] : vendors}
             allLeads={leads}
             onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
             onOpenTaskModal={(lead) => setSelectedLeadForTask(lead)}
@@ -484,6 +500,7 @@ export default function App() {
             onCallClick={handleCallClick}
             onRequestLead={handleVendorRequestLead}
             onToggleStatus={handleToggleVendorStatus}
+            canReceiveLeads={Boolean(loggedVendor)}
           />
         )}
 
