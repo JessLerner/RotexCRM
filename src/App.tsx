@@ -194,7 +194,10 @@ export default function App() {
       // Management profiles seed each active seller to its daily target. This is server-side,
       // idempotent, and also distributes records that were imported before this feature existed.
       await processDueRotations();
-      if (currentSession.role !== 'vendedor') await fillRotationCupos();
+      if (currentSession.role !== 'vendedor') {
+        await fillRotationCupos();
+        await refreshRoster();
+      }
       await refreshOperationalData();
     };
     initialiseOperationalQueue().catch((error) => console.error('No se pudo cargar la operación:', error));
