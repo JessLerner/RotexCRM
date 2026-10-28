@@ -4,6 +4,7 @@ import { decodeCsvFile, parseCSV, matchFoxCrmColumns } from '../utils/csvParser'
 import { UserRole } from '../types/crm';
 import { sendLeadPushNotification } from '../utils/pushNotifications';
 import { FoxImportResult, FoxLeadImportRow } from '../services/foxImportRepository';
+import { resolveVehicleBrand } from '../utils/vehicleBrand';
 
 interface FoxCrmImportModalProps {
   isOpen: boolean;
@@ -104,10 +105,6 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
       setError('Debés mapear al menos la columna "Nombre del Cliente".');
       return;
     }
-    if (!columnMap.brand) {
-      setError('Debés mapear la columna "Marca" para que el motor pueda asignar al vendedor correspondiente.');
-      return;
-    }
     setError(null);
     setStep('preview');
   };
@@ -120,21 +117,20 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
         .map((value) => value.trim()).filter(Boolean).join(' ');
       if (!clientName) return [];
 
-      const explicitBrand = (columnMap.brand ? row[columnMap.brand] : '').trim();
-      const brandSignals = [columnMap.sourceTeam, columnMap.sourceOrigin, columnMap.modelInterest].map((column) => column ? row[column] : '').join(' ');
-      const brand = explicitBrand || (brandSignals.match(/peugeot|ford|volkswagen|toyota|chevrolet|fiat|citro[eë]n|renault|jeep|ram/i)?.[0] || 'General');
+      const modelInterest = (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim();
+      const brandResolution = resolveVehicleBrand(columnMap.brand ? row[columnMap.brand] : '', modelInterest);
       return [{
         foxLeadId: (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || `FOX-${idx + 1001}`,
         clientName,
-        brand,
+        brand: brandResolution.brand,
         phone: (columnMap.phone ? row[columnMap.phone] : '').trim(),
         email: (columnMap.email ? row[columnMap.email] : '').trim(),
-        modelInterest: (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim(),
+        modelInterest,
         foxOriginalCloseDate: (columnMap.foxOriginalCloseDate ? row[columnMap.foxOriginalCloseDate] : '').trim(),
         foxOriginalCloseReason: (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim(),
         foxBranch: (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim(),
         foxNotes: (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim(),
-        sourceMetadata: Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))),
+        sourceMetadata: { ...Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))), brandResolution: brandResolution.resolution },
       }];
     });
 
@@ -358,7 +354,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                 {[
                   { key: 'clientName', label: 'Nombre del Cliente / Contacto *', required: true },
                   { key: 'lastName', label: 'Apellido (se combina con Nombre)', required: false },
-                  { key: 'brand', label: 'Marca del Vehículo (Clave para asignación) *', required: true },
+                  { key: 'brand', label: 'Marca del Vehículo (si está disponible)', required: false },
                   { key: 'phone', label: 'Teléfono / WhatsApp', required: false },
                   { key: 'email', label: 'Correo Electrónico', required: false },
                   { key: 'modelInterest', label: 'Modelo o Versión de Interés', required: false },
@@ -437,7 +433,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {parsedRows.slice(0, 5).map((row, i) => {
-                      const brand = columnMap.brand ? row[columnMap.brand] : 'General';
+                      const brand = resolveVehicleBrand(columnMap.brand ? row[columnMap.brand] : '', columnMap.modelInterest ? row[columnMap.modelInterest] : '');
                       return (
                         <tr key={i} className="hover:bg-slate-50">
                           <td className="py-2 px-3 font-semibold text-slate-900">
@@ -445,7 +441,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                           </td>
                           <td className="py-2 px-3">
                             <span className="font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[11px]">
-                              {brand}
+                              {brand.brand || 'Sin marca · cartera general'}
                             </span>
                           </td>
                           <td className="py-2 px-3 text-slate-600">
