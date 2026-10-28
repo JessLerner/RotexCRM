@@ -16,6 +16,7 @@ import { GerenciaDashboard } from './components/GerenciaDashboard';
 import { RankingsView } from './components/RankingsView';
 import { AuthScreen } from './components/AuthScreen';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+import { importFoxLeads } from './services/foxImportRepository';
 
 import {
   Lead,
@@ -635,17 +636,10 @@ export default function App() {
         <FoxCrmImportModal
           isOpen={isImportModalOpen}
           onClose={() => setIsImportModalOpen(false)}
-          vendors={vendors}
-          existingLeads={leads}
           currentUserRole={currentSession.role}
           currentSupervisorName={currentSession.supervisorName}
           currentStructure={currentSession.structure}
-          onImportLeads={(newLeads) => {
-            const combined = [...newLeads, ...leads];
-            saveStoredLeads(combined);
-            reloadState();
-            setIsImportModalOpen(false);
-          }}
+          onImportLeads={(rows) => importFoxLeads('fox-crm.csv', rows)}
         />
       )}
     </div>

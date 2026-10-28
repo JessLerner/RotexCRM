@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { X, Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Download, RefreshCw, Car, ShieldCheck } from 'lucide-react';
 import { parseCSV, matchFoxCrmColumns } from '../utils/csvParser';
-import { Lead, Vendor, UserRole } from '../types/crm';
-import { findBestVendorForBrand, assignLeadToVendor } from '../utils/rotationEngine';
+import { UserRole } from '../types/crm';
 import { sendLeadPushNotification } from '../utils/pushNotifications';
+import { FoxImportResult, FoxLeadImportRow } from '../services/foxImportRepository';
 
 interface FoxCrmImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  vendors: Vendor[];
-  existingLeads: Lead[];
-  onImportLeads: (newLeads: Lead[]) => void;
+  onImportLeads: (rows: FoxLeadImportRow[]) => Promise<FoxImportResult>;
   currentUserRole?: UserRole;
   currentSupervisorName?: string;
   currentStructure?: string;
@@ -19,8 +17,6 @@ interface FoxCrmImportModalProps {
 export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
   isOpen,
   onClose,
-  vendors,
-  existingLeads,
   onImportLeads,
   currentUserRole = 'administracion',
   currentSupervisorName,
@@ -117,117 +113,37 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
     setStep('preview');
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     setIsProcessing(true);
-    const nowIso = new Date().toISOString();
-    const createdLeads: Lead[] = [];
-
-    const supervisorRestriction =
-      restrictToSupervisorTeam && currentSupervisorName ? currentSupervisorName : null;
-    const structureRestriction =
-      restrictToStructure && currentStructure ? currentStructure : null;
-
-    // Filter eligible vendors pool if supervisor restriction is enabled
-    const poolVendors = supervisorRestriction
-      ? vendors.filter((v) => v.supervisor.trim().toLowerCase() === supervisorRestriction.trim().toLowerCase())
-      : vendors;
-
-    // Map each row to a Lead object
-    parsedRows.forEach((row, idx) => {
+    setError(null);
+    const rows: FoxLeadImportRow[] = parsedRows.flatMap((row, idx) => {
       const clientName = (columnMap.clientName ? row[columnMap.clientName] : '').trim();
-      if (!clientName) return;
+      if (!clientName) return [];
 
       const brand = (columnMap.brand ? row[columnMap.brand] : 'General').trim();
-      const phone = (columnMap.phone ? row[columnMap.phone] : '').trim();
-      const email = (columnMap.email ? row[columnMap.email] : '').trim();
-      const foxLeadId = (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || 'FOX-' + (idx + 1001);
-      const modelInterest = (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim();
-      const foxOriginalCloseDate = (columnMap.foxOriginalCloseDate ? row[columnMap.foxOriginalCloseDate] : '').trim();
-      const foxOriginalCloseReason = (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim();
-      const foxBranch = (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim();
-      const foxNotes = (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim();
-
-      const initialLead: Lead = {
-        id: 'lead_' + Date.now() + '_' + idx,
-        foxLeadId,
+      return [{
+        foxLeadId: (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || `FOX-${idx + 1001}`,
         clientName,
-        phone,
-        email,
         brand,
-        modelInterest,
-        foxOriginalCloseDate,
-        foxOriginalCloseReason,
-        foxBranch,
-        foxNotes,
-        status: 'pending_contact',
-        currentVendorId: null,
-        currentVendorName: null,
-        currentSupervisorName: null,
-        assignedAt: nowIso,
-        firstGestionAt: null,
-        lastGestionAt: null,
-        hasContacted: false,
-        contactDeadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        activeTaskDeadline: null,
-        currentTask: null,
-        globalClosureDeadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-        rotationCount: 0,
-        previousVendorIds: [],
-        comments: [],
-        closure: null,
-        closureHistory: [],
-        importedAt: nowIso,
-        restrictedSupervisor: supervisorRestriction,
-        restrictedStructure: structureRestriction,
-      };
-
-      // Assign to best active vendor
-      const targetVendor = findBestVendorForBrand(
-        brand,
-        poolVendors,
-        [...existingLeads, ...createdLeads],
-        [],
-        supervisorRestriction
-      );
-
-      if (targetVendor) {
-        const { lead: assignedLead } = assignLeadToVendor(
-          initialLead,
-          targetVendor,
-          'initial_assignment',
-          'Importado de Fox CRM',
-          nowIso
-        );
-        createdLeads.push(assignedLead);
-      } else {
-        // No active vendor for this brand in the pool -> queue as unassigned
-        initialLead.status = 'expired_unassigned';
-        initialLead.comments.push({
-          id: 'cmt_' + Date.now() + '_' + idx,
-          leadId: initialLead.id,
-          authorId: 'system',
-          authorName: 'Motor de Rotación',
-          authorRole: 'sistema',
-          type: 'sistema',
-          text: `Dato importado para la marca ${brand}. En espera: no hay ningún asesor activo asignado a esa marca${
-            supervisorRestriction ? ` en el equipo de ${supervisorRestriction}` : ''
-          }.`,
-          createdAt: nowIso,
-        });
-        createdLeads.push(initialLead);
-      }
+        phone: (columnMap.phone ? row[columnMap.phone] : '').trim(),
+        email: (columnMap.email ? row[columnMap.email] : '').trim(),
+        modelInterest: (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim(),
+        foxOriginalCloseDate: (columnMap.foxOriginalCloseDate ? row[columnMap.foxOriginalCloseDate] : '').trim(),
+        foxOriginalCloseReason: (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim(),
+        foxBranch: (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim(),
+        foxNotes: (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim(),
+      }];
     });
 
-    setIsProcessing(false);
-    onImportLeads(createdLeads);
-
-    sendLeadPushNotification(
-      'Datos de Fox CRM Importados',
-      `Se procesaron e ingresaron ${createdLeads.length} datos a la rotación activa.`,
-      'assignment'
-    );
-
-    onClose();
+    try {
+      const result = await onImportLeads(rows);
+      sendLeadPushNotification('Datos de Fox CRM Importados', `${result.inserted} datos fueron guardados en cola.`, 'assignment');
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la importación.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDownloadTemplate = () => {
@@ -518,12 +434,6 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                   <tbody className="divide-y divide-slate-100">
                     {parsedRows.slice(0, 5).map((row, i) => {
                       const brand = columnMap.brand ? row[columnMap.brand] : 'General';
-                      const supervisorFilter = restrictToSupervisorTeam && currentSupervisorName ? currentSupervisorName : null;
-                      const pool = supervisorFilter
-                        ? vendors.filter((v) => v.supervisor.trim().toLowerCase() === supervisorFilter.trim().toLowerCase())
-                        : vendors;
-                      const bestVendor = findBestVendorForBrand(brand, pool, existingLeads, [], supervisorFilter);
-
                       return (
                         <tr key={i} className="hover:bg-slate-50">
                           <td className="py-2 px-3 font-semibold text-slate-900">
@@ -544,15 +454,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                             {columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '-'}
                           </td>
                           <td className="py-2 px-3">
-                            {bestVendor ? (
-                              <span className="text-emerald-700 font-medium">
-                                → {bestVendor.name} ({bestVendor.brand} · {bestVendor.supervisor})
-                              </span>
-                            ) : (
-                              <span className="text-amber-600 font-medium">
-                                En espera ({supervisorFilter ? `sin asesor en equipo ${supervisorFilter}` : 'sin asesor'})
-                              </span>
-                            )}
+                            <span className="text-amber-600 font-medium">En cola hasta habilitar la nómina</span>
                           </td>
                         </tr>
                       );
@@ -568,10 +470,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                   <span>Configuración de Asignación y Rotación:</span>
                 </div>
                 <p>
-                  {restrictToSupervisorTeam && currentSupervisorName
-                    ? `Rotación exclusiva para el equipo del supervisor: ${currentSupervisorName}.`
-                    : 'Rotación global abierta para todos los asesores activos según marca y menor carga.'}{' '}
-                  Al confirmar, cada dato se asignará con el <strong>plazo límite de 30 minutos</strong> para primera gestión.
+                  Los datos se guardarán en Supabase con estado <strong>En cola</strong>. No se asignarán ni iniciarán plazos hasta que habilitemos la nómina comercial real.
                 </p>
               </div>
 
@@ -590,7 +489,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
                 >
                   {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  <span>Confirmar e Iniciar Rotación en Vivo</span>
+                  <span>Confirmar e Importar a la Cola</span>
                 </button>
               </div>
             </div>
