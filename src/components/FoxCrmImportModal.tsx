@@ -5,6 +5,7 @@ import { UserRole } from '../types/crm';
 import { sendLeadPushNotification } from '../utils/pushNotifications';
 import { FoxImportResult, FoxLeadImportRow } from '../services/foxImportRepository';
 import { resolveVehicleBrand } from '../utils/vehicleBrand';
+import { assessPhone } from '../utils/phoneValidation';
 
 interface FoxCrmImportModalProps {
   isOpen: boolean;
@@ -119,24 +120,26 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
 
       const modelInterest = (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim();
       const brandResolution = resolveVehicleBrand(columnMap.brand ? row[columnMap.brand] : '', modelInterest);
+      const phone = (columnMap.phone ? row[columnMap.phone] : '').trim();
+      const phoneAssessment = assessPhone(phone);
       return [{
         foxLeadId: (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || `FOX-${idx + 1001}`,
         clientName,
         brand: brandResolution.brand,
-        phone: (columnMap.phone ? row[columnMap.phone] : '').trim(),
+        phone,
         email: (columnMap.email ? row[columnMap.email] : '').trim(),
         modelInterest,
         foxOriginalCloseDate: (columnMap.foxOriginalCloseDate ? row[columnMap.foxOriginalCloseDate] : '').trim(),
         foxOriginalCloseReason: (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim(),
         foxBranch: (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim(),
         foxNotes: (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim(),
-        sourceMetadata: { ...Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))), brandResolution: brandResolution.resolution },
+        sourceMetadata: { ...Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))), brandResolution: brandResolution.resolution, phoneValidation: phoneAssessment.valid ? 'valid' : 'review', phoneReviewReason: phoneAssessment.reason || '' },
       }];
     });
 
     try {
       const result = await onImportLeads(rows);
-      sendLeadPushNotification('Datos de Fox CRM Importados', `${result.inserted} datos fueron guardados en cola.`, 'assignment');
+      sendLeadPushNotification('Datos de Fox CRM Importados', `${result.inserted - result.review} datos quedaron en cola${result.review ? ` y ${result.review} requieren revisión de teléfono` : ''}.`, 'assignment');
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la importación.');

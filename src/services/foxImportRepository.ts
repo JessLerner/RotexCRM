@@ -19,6 +19,7 @@ export interface FoxImportResult {
   inserted: number;
   skipped: number;
   invalid: number;
+  review: number;
 }
 
 async function fingerprint(rows: FoxLeadImportRow[]) {
@@ -37,5 +38,5 @@ export async function importFoxLeads(filename: string, rows: FoxLeadImportRow[])
     if (error) throw new Error(error.message);
     return data as FoxImportResult;
   }));
-  return results.reduce<FoxImportResult>((total, result) => ({ batchId: total.batchId || result.batchId, inserted: total.inserted + result.inserted, skipped: total.skipped + result.skipped, invalid: total.invalid + result.invalid }), { batchId: '', inserted: 0, skipped: 0, invalid: 0 });
+  return results.reduce<FoxImportResult>((total, result) => ({ batchId: total.batchId || result.batchId, inserted: total.inserted + result.inserted, skipped: total.skipped + result.skipped, invalid: total.invalid + result.invalid, review: total.review + (result.review || 0) }), { batchId: '', inserted: 0, skipped: 0, invalid: 0, review: 0 });
 }
