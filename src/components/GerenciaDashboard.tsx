@@ -23,6 +23,7 @@ interface GerenciaDashboardProps {
   vendors: Vendor[];
   leads: Lead[];
   onOpenImportModal: () => void;
+  onOpenInviteSeller: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
   onToggleSupervisorTeamStatus: (supervisorName: string, activate: boolean) => void;
   onOpenLeadDetail: (lead: Lead) => void;
@@ -34,6 +35,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   vendors,
   leads,
   onOpenImportModal,
+  onOpenInviteSeller,
   onToggleVendorStatus,
   onToggleSupervisorTeamStatus,
   onOpenLeadDetail,
@@ -114,13 +116,10 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onOpenImportModal}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors shrink-0"
-        >
-          <Upload className="w-4 h-4" />
-          <span>Importar Datos para Mi Estructura</span>
-        </button>
+        <div className="flex gap-2">
+          <button onClick={onOpenInviteSeller} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg"><Users className="w-4 h-4" /><span>Nuevo asesor</span></button>
+          <button onClick={onOpenImportModal} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors shrink-0"><Upload className="w-4 h-4" /><span>Importar Datos para Mi Estructura</span></button>
+        </div>
       </div>
 
       {/* KPI Cards Row (Gerencia Statistics) */}

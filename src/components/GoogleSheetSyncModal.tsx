@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, FileSpreadsheet, RefreshCw, CheckCircle2, AlertCircle, Copy, ExternalLink, Database } from 'lucide-react';
 import { GoogleSheetConfig, Vendor } from '../types/crm';
 import { syncVendorsFromGoogleSheet } from '../services/storageService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface GoogleSheetSyncModalProps {
   isOpen: boolean;
@@ -28,6 +29,10 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
   const handleSyncUrl = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSupabaseConfigured) {
+      setError('La nómina ya se administra en Supabase. Esta importación local fue deshabilitada para evitar mostrar altas que no se guardan.');
+      return;
+    }
     if (!sheetUrl.trim()) {
       setError('Por favor ingresá la URL de la Google Sheet');
       return;
@@ -52,6 +57,10 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   };
 
   const handleSyncPaste = async () => {
+    if (isSupabaseConfigured) {
+      setError('La nómina ya se administra en Supabase. Esta importación local fue deshabilitada para evitar mostrar altas que no se guardan.');
+      return;
+    }
     if (!pastedData.trim()) {
       setError('Pegá los datos de la pestaña Parte Diario copiados de Google Sheets');
       return;
@@ -76,6 +85,10 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   };
 
   const handleLoadOfficialStructure = async () => {
+    if (isSupabaseConfigured) {
+      setError('La plantilla demo está deshabilitada en producción.');
+      return;
+    }
     // Official structure as specified by the user: Vendedor, Supervisor, Marca, Estado, Capacidad
     const standardParteDiarioCsv = `Vendedor,Supervisor,Marca,Estado,Capacidad Maxima,Telefono
 Martin Gomez,Mariana Lopez,Toyota,Activo,15,5491123456781

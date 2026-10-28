@@ -15,6 +15,7 @@ import { SupervisorDashboard } from './components/SupervisorDashboard';
 import { GerenciaDashboard } from './components/GerenciaDashboard';
 import { RankingsView } from './components/RankingsView';
 import { AuthScreen } from './components/AuthScreen';
+import { InviteSellerModal } from './components/InviteSellerModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
@@ -70,9 +71,16 @@ export default function App() {
   // Modals
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isInviteSellerOpen, setIsInviteSellerOpen] = useState(false);
   const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
   const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
   const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
+
+  const refreshRoster = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const roster = await loadRoster();
+    setVendors(roster);
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -154,8 +162,8 @@ export default function App() {
   // Personnel is always loaded from Supabase. This deliberately replaces the old demo roster.
   useEffect(() => {
     if (!currentSession.id || !isSupabaseConfigured) return;
-    loadRoster().then(setVendors).catch((error) => console.error('No se pudo cargar la nómina:', error));
-  }, [currentSession.id]);
+    refreshRoster().catch((error) => console.error('No se pudo cargar la nómina:', error));
+  }, [currentSession.id, refreshRoster]);
 
   // WhatsApp click handler
   const handleWhatsAppClick = (lead: Lead) => {
@@ -297,19 +305,32 @@ export default function App() {
   };
 
   // Toggle vendor activity status (Activo, Pausa, Inactivo)
-  const handleToggleVendorStatus = (vendorId: string, currentStatus: VendorStatus) => {
+  const handleToggleVendorStatus = async (vendorId: string, currentStatus: VendorStatus) => {
     let nextStatus: VendorStatus = 'active';
     if (currentStatus === 'active') nextStatus = 'paused';
     else if (currentStatus === 'paused') nextStatus = 'inactive';
     else nextStatus = 'active';
 
-    const updated = vendors.map((v) => (v.id === vendorId ? { ...v, status: nextStatus } : v));
-    saveStoredVendors(updated);
-    reloadState();
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('team_memberships')
+        .update({ status: nextStatus })
+        .eq('profile_id', vendorId)
+        .is('left_at', null);
+      if (error) {
+        window.alert(`No se pudo actualizar el estado: ${error.message}`);
+        return;
+      }
+      await refreshRoster();
+    } else {
+      const updated = vendors.map((v) => (v.id === vendorId ? { ...v, status: nextStatus } : v));
+      saveStoredVendors(updated);
+      reloadState();
+    }
 
     sendLeadPushNotification(
       'Estado de Asesor Actualizado',
-      `Asesor ${updated.find((v) => v.id === vendorId)?.name} ahora en estado: ${
+      `Asesor ${vendors.find((v) => v.id === vendorId)?.name} ahora en estado: ${
         nextStatus === 'active' ? 'Activo' : nextStatus === 'paused' ? 'En Pausa' : 'Inactivo'
       }`,
       'info'
@@ -317,15 +338,27 @@ export default function App() {
   };
 
   // Toggle all vendors under a supervisor
-  const handleToggleSupervisorTeamStatus = (supervisorName: string, activate: boolean) => {
+  const handleToggleSupervisorTeamStatus = async (supervisorName: string, activate: boolean) => {
     const nextStatus: VendorStatus = activate ? 'active' : 'paused';
-    const updated = vendors.map((v) =>
-      v.supervisor.trim().toLowerCase() === supervisorName.trim().toLowerCase()
-        ? { ...v, status: nextStatus }
-        : v
-    );
-    saveStoredVendors(updated);
-    reloadState();
+    const teamVendorIds = vendors
+      .filter((v) => v.supervisor.trim().toLowerCase() === supervisorName.trim().toLowerCase())
+      .map((v) => v.id);
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('team_memberships')
+        .update({ status: nextStatus })
+        .in('profile_id', teamVendorIds)
+        .is('left_at', null);
+      if (error) {
+        window.alert(`No se pudo actualizar el equipo: ${error.message}`);
+        return;
+      }
+      await refreshRoster();
+    } else {
+      const updated = vendors.map((v) => teamVendorIds.includes(v.id) ? { ...v, status: nextStatus } : v);
+      saveStoredVendors(updated);
+      reloadState();
+    }
 
     sendLeadPushNotification(
       'Equipo Actualizado',
@@ -348,7 +381,16 @@ export default function App() {
   };
 
   // Update vendor capacity
-  const handleUpdateVendorMaxCapacity = (vendorId: string, newMax: number) => {
+  const handleUpdateVendorMaxCapacity = async (vendorId: string, newMax: number) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('team_memberships').update({ capacity: newMax }).eq('profile_id', vendorId).is('left_at', null);
+      if (error) {
+        window.alert(`No se pudo actualizar la capacidad: ${error.message}`);
+        return;
+      }
+      await refreshRoster();
+      return;
+    }
     const updated = vendors.map((v) => (v.id === vendorId ? { ...v, maxAssignments: newMax } : v));
     saveStoredVendors(updated);
     reloadState();
@@ -518,6 +560,7 @@ export default function App() {
             vendors={vendors}
             leads={leads}
             onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenInviteSeller={() => setIsInviteSellerOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
             onToggleSupervisorTeamStatus={handleToggleSupervisorTeamStatus}
             onOpenLeadDetail={(lead) => setSelectedLeadForDetail(lead)}
@@ -651,6 +694,7 @@ export default function App() {
           onImportLeads={(rows) => importFoxLeads('fox-crm.csv', rows)}
         />
       )}
+      <InviteSellerModal isOpen={isInviteSellerOpen} onClose={() => setIsInviteSellerOpen(false)} onInvite={handleAddNewVendorToTeam} />
     </div>
   );
 }
