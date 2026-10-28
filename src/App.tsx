@@ -123,6 +123,9 @@ export default function App() {
         return;
       }
       setCurrentSession({ id: data.id, name: data.display_name, role: data.role, vendorId: data.role === 'vendedor' ? data.id : undefined, supervisorName: data.role === 'supervisor' ? data.display_name : undefined });
+      // A session may be restored after a different role was used. Always land on a valid
+      // first view for the authenticated role instead of rendering an empty viewport.
+      setActiveTab(data.role === 'vendedor' ? 'assigned' : data.role === 'supervisor' ? 'monitoring' : data.role === 'gerencia' ? 'metrics' : 'leads');
       setAuthError(null);
       setAuthLoading(false);
     };

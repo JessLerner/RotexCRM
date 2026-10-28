@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-6 h-16">
-          {/* Zone 1: Single text element wordmark */}
+          {/* Zone 1: Product identity */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => {
@@ -91,9 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="text-left cursor-pointer group focus:outline-none"
             >
-              <div className="text-xl font-bold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                Rotex <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded ml-1">Rotación CRM</span>
-              </div>
+              <img src="/rotex-logo.jfif" alt="Rotex · Rotación inteligente de leads" className="h-11 w-36 rounded-md object-cover object-center shadow-sm ring-1 ring-slate-200 transition-opacity group-hover:opacity-85" />
             </button>
             <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-200">
               {getRoleBadge(currentSession.role)}

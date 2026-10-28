@@ -105,9 +105,8 @@ Reglas nuevas acordadas para ese circuito:
 
 ### 5. Experiencia de acceso y UI
 
-- Agregar el icono para mostrar u ocultar contraseña.
-- Crear una pantalla independiente para `Olvidé mi contraseña`; hoy el flujo reutiliza el formulario de inicio y resulta confuso.
 - Probar en escritorio y móvil el modal de cierre y los formularios extensos.
+- Continuar aplicando la identidad visual de Rotex en reportes, estados vacíos y futuras vistas, manteniendo el logo disponible en acceso, encabezado y favicon.
 
 ## Migraciones y estado de aplicación
 

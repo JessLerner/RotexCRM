@@ -4,8 +4,8 @@ La hoja de ruta consolidada está en [ESTADO_PROYECTO.md](ESTADO_PROYECTO.md). E
 
 ## Acceso y recuperación
 
-- Agregar control de ojo para mostrar u ocultar la contraseña en inicio, activación y recuperación.
-- Reemplazar el flujo actual de “Olvidé mi contraseña” por una pantalla inicial dedicada y más clara, sin obligar a completar el formulario de inicio de sesión.
+- Implementado: control de ojo para mostrar u ocultar la contraseña en inicio y activación.
+- Implementado: pantalla dedicada y clara para solicitar recuperación de contraseña.
 
 ## Estructura y roles
 
