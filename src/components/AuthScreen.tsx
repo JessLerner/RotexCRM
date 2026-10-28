@@ -47,7 +47,7 @@ export function AuthScreen({ error, passwordSetup = false, onPasswordUpdated }: 
             Falta configurar Supabase. Agregá `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` al entorno de despliegue.
           </p>
         ) : (
-          {passwordSetup ? <form className="space-y-4" onSubmit={updatePassword}>
+          passwordSetup ? <form className="space-y-4" onSubmit={updatePassword}>
             <div><h2 className="text-lg font-bold">Creá tu contraseña</h2><p className="mt-1 text-sm text-slate-500">Elegí una contraseña segura para activar o recuperar tu acceso a Rotex.</p></div>
             <label className="block text-sm font-medium">Nueva contraseña
               <input required minLength={8} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" autoComplete="new-password" />
