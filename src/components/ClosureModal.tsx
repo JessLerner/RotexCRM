@@ -31,8 +31,8 @@ export const ClosureModal: React.FC<ClosureModalProps> = ({ lead, isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-      <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-slate-900/60 p-4">
+      <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
           <div>
@@ -66,7 +66,7 @@ export const ClosureModal: React.FC<ClosureModalProps> = ({ lead, isOpen, onClos
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-4">
           {/* Motivo de cierre */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-2">
