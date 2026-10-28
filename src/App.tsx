@@ -19,6 +19,7 @@ import { InviteSellerModal } from './components/InviteSellerModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
+import { loadImportedLeads } from './services/leadRepository';
 
 import {
   Lead,
@@ -82,6 +83,10 @@ export default function App() {
     const roster = await loadRoster();
     setVendors(roster);
   }, []);
+  const refreshImportedLeads = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    setLeads(await loadImportedLeads());
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -141,7 +146,7 @@ export default function App() {
       activeAssignments: counts.get(v.id) || 0,
     }));
 
-    setLeads(loadedLeads);
+    if (!isSupabaseConfigured) setLeads(loadedLeads);
     setVendors(updatedVendors);
     setRotationLogs(loadedLogs);
     setSheetConfig(loadedConfig);
@@ -166,6 +171,11 @@ export default function App() {
     if (!currentSession.id || !isSupabaseConfigured) return;
     refreshRoster().catch((error) => console.error('No se pudo cargar la nómina:', error));
   }, [currentSession.id, refreshRoster]);
+
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured) return;
+    refreshImportedLeads().catch((error) => console.error('No se pudo cargar la cola importada:', error));
+  }, [currentSession.id, refreshImportedLeads]);
 
   // WhatsApp click handler
   const handleWhatsAppClick = (lead: Lead) => {

@@ -125,6 +125,7 @@ export function matchFoxCrmColumns(headers: string[]): Record<string, string> {
     foxLeadId: '',
     clientName: '',
     phone: '',
+    phoneSecondary: '',
     email: '',
     brand: '',
     modelInterest: '',
@@ -152,8 +153,9 @@ export function matchFoxCrmColumns(headers: string[]): Record<string, string> {
     }
     if (!mapping.lastName && (k === 'apellido' || k.includes('apellidos'))) mapping.lastName = header;
     // Phone
-    if (!mapping.phone && (k.includes('telefono') || k.includes('celular') || k.includes('whatsapp') || k.includes('movil') || k === 'tel')) {
-      mapping.phone = header;
+    if (k.includes('telefono') || k.includes('celular') || k.includes('whatsapp') || k.includes('movil') || k === 'tel') {
+      if (!mapping.phone) mapping.phone = header;
+      else if (!mapping.phoneSecondary && mapping.phone !== header) mapping.phoneSecondary = header;
     }
     // Email
     if (!mapping.email && (k.includes('email') || k.includes('correo') || k.includes('mail'))) {

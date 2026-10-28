@@ -120,8 +120,11 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
 
       const modelInterest = (columnMap.modelInterest ? row[columnMap.modelInterest] : '').trim();
       const brandResolution = resolveVehicleBrand(columnMap.brand ? row[columnMap.brand] : '', modelInterest);
-      const phone = (columnMap.phone ? row[columnMap.phone] : '').trim();
-      const phoneAssessment = assessPhone(phone);
+      const phoneCandidates = [columnMap.phone, columnMap.phoneSecondary]
+        .map((column) => column ? row[column].trim() : '')
+        .filter(Boolean);
+      const phoneAssessment = phoneCandidates.map(assessPhone).find((assessment) => assessment.valid) || assessPhone(phoneCandidates[0] || '');
+      const phone = phoneCandidates.find((candidate) => assessPhone(candidate).normalized === phoneAssessment.normalized) || '';
       return [{
         foxLeadId: (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || `FOX-${idx + 1001}`,
         clientName,
@@ -133,7 +136,7 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
         foxOriginalCloseReason: (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim(),
         foxBranch: (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim(),
         foxNotes: (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim(),
-        sourceMetadata: { ...Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))), brandResolution: brandResolution.resolution, phoneValidation: phoneAssessment.valid ? 'valid' : 'review', phoneReviewReason: phoneAssessment.reason || '' },
+        sourceMetadata: { ...Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))), brandResolution: brandResolution.resolution, phoneValidation: phoneAssessment.valid ? 'valid' : 'review', phoneReviewReason: phoneAssessment.reason || '', alternatePhone: phoneCandidates.find((candidate) => candidate !== phone) || '' },
       }];
     });
 
@@ -359,6 +362,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
                   { key: 'lastName', label: 'Apellido (se combina con Nombre)', required: false },
                   { key: 'brand', label: 'Marca del Vehículo (si está disponible)', required: false },
                   { key: 'phone', label: 'Teléfono / WhatsApp', required: false },
+                  { key: 'phoneSecondary', label: 'Celular alternativo (se usa si el primero no es válido)', required: false },
                   { key: 'email', label: 'Correo Electrónico', required: false },
                   { key: 'modelInterest', label: 'Modelo o Versión de Interés', required: false },
                   { key: 'foxLeadId', label: 'ID Lead en Fox CRM', required: false },
