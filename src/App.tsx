@@ -14,6 +14,8 @@ import { VendorDashboard } from './components/VendorDashboard';
 import { SupervisorDashboard } from './components/SupervisorDashboard';
 import { GerenciaDashboard } from './components/GerenciaDashboard';
 import { RankingsView } from './components/RankingsView';
+import { AuthScreen } from './components/AuthScreen';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 import {
   Lead,
@@ -35,19 +37,20 @@ import {
   getStoredSheetConfig,
   saveStoredSheetConfig,
   subscribeToSync,
-  runRotationHeartbeat,
 } from './services/storageService';
 import { processLeadClosure, getOutcomeLabel, assignLeadToVendor } from './utils/rotationEngine';
 import { sendLeadPushNotification } from './utils/pushNotifications';
 import { playSaleFanfare, playAssignChime } from './utils/soundAlerts';
 
 export default function App() {
-  // Current user session: defaults to Administración with ability to switch to any of the 4 roles
+  // Until Supabase resolves the session, the application exposes no CRM data.
   const [currentSession, setCurrentSession] = useState<UserSession>({
-    id: 'usr_admin',
-    name: 'Administración General',
-    role: 'administracion',
+    id: '',
+    name: '',
+    role: 'vendedor',
   });
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<string>('leads');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -68,6 +71,43 @@ export default function App() {
   const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
   const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
   const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthLoading(false);
+      return;
+    }
+
+    const loadProfile = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, status')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error || !data || data.status !== 'active') {
+        await supabase.auth.signOut();
+        setAuthError(error?.message || 'Tu cuenta no está habilitada para usar Rotex.');
+        setAuthLoading(false);
+        return;
+      }
+      setCurrentSession({ id: data.id, name: data.display_name, role: data.role, vendorId: data.role === 'vendedor' ? data.id : undefined });
+      setAuthError(null);
+      setAuthLoading(false);
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) void loadProfile(data.session.user.id);
+      else setAuthLoading(false);
+    });
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) void loadProfile(session.user.id);
+      else {
+        setCurrentSession({ id: '', name: '', role: 'vendedor' });
+        setAuthLoading(false);
+      }
+    });
+    return () => subscription.subscription.unsubscribe();
+  }, []);
 
   // Load state from local storage & server
   const reloadState = useCallback(() => {
@@ -101,44 +141,12 @@ export default function App() {
     }
   }, [selectedLeadForDetail]);
 
-  // Initial load & subscription to local BroadcastChannel and multi-device SSE
+  // Temporary local view refresh while each dashboard repository is migrated.
+  // Supabase Realtime replaces the removed unauthenticated SSE endpoint.
   useEffect(() => {
     reloadState();
     const unsub = subscribeToSync(reloadState);
-
-    let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource('/api/stream');
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'leads_updated' || data.type === 'vendors_updated' || data.type === 'new_rotation_log') {
-            reloadState();
-          }
-        } catch {
-          // Ignore
-        }
-      };
-    } catch {
-      // Fallback
-    }
-
-    return () => {
-      unsub();
-      if (eventSource) eventSource.close();
-    };
-  }, [reloadState]);
-
-  // Background SLA Rotation Heartbeat: checks every 4 seconds
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const { rotatedCount } = runRotationHeartbeat();
-      if (rotatedCount > 0) {
-        reloadState();
-      }
-    }, 4000);
-
-    return () => clearInterval(timer);
+    return unsub;
   }, [reloadState]);
 
   // WhatsApp click handler
@@ -150,76 +158,11 @@ export default function App() {
 
     const waUrl = `https://wa.me/${cleanPhone}?text=${greeting}`;
     window.open(waUrl, '_blank');
-
-    if (!lead.hasContacted) {
-      const nowIso = new Date().toISOString();
-      const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
-      const updatedComment = {
-        id: 'cmt_' + Date.now(),
-        leadId: lead.id,
-        authorId: currentVendor?.id || 'vendedor',
-        authorName: currentVendor?.name || 'Asesor',
-        authorRole: 'vendedor' as const,
-        type: 'gestion' as const,
-        text: `Primera gestión realizada por WhatsApp a las ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Plazo de 30 minutos cumplido. Tenés 5 horas para programar tu próxima tarea.`,
-        createdAt: nowIso,
-      };
-
-      const updatedLead: Lead = {
-        ...lead,
-        hasContacted: true,
-        firstGestionAt: nowIso,
-        lastGestionAt: nowIso,
-        status: 'in_progress',
-        comments: [updatedComment, ...lead.comments],
-      };
-
-      const nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
-      saveStoredLeads(nextLeads);
-      reloadState();
-
-      sendLeadPushNotification(
-        'Gestión WhatsApp Registrada',
-        `Primer contacto registrado con ${lead.clientName}. Recordá agendar la próxima tarea en menos de 5 horas.`,
-        'assignment'
-      );
-    }
   };
 
   // Call click handler
   const handleCallClick = (lead: Lead) => {
-    const nowIso = new Date().toISOString();
-    const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
-
-    const updatedComment = {
-      id: 'cmt_' + Date.now(),
-      leadId: lead.id,
-      authorId: currentVendor?.id || 'vendedor',
-      authorName: currentVendor?.name || 'Asesor',
-      authorRole: 'vendedor' as const,
-      type: 'gestion' as const,
-      text: `Llamada telefónica registrada al número ${lead.phone} por ${currentVendor?.name || 'Asesor'}.`,
-      createdAt: nowIso,
-    };
-
-    const updatedLead: Lead = {
-      ...lead,
-      hasContacted: true,
-      firstGestionAt: lead.firstGestionAt || nowIso,
-      lastGestionAt: nowIso,
-      status: 'in_progress',
-      comments: [updatedComment, ...lead.comments],
-    };
-
-    const nextLeads = leads.map((l) => (l.id === lead.id ? updatedLead : l));
-    saveStoredLeads(nextLeads);
-    reloadState();
-
-    sendLeadPushNotification(
-      'Llamada Registrada',
-      `Gestión guardada para ${lead.clientName}.`,
-      'info'
-    );
+    window.location.href = `tel:${(lead.phone || '').replace(/[^0-9+]/g, '')}`;
   };
 
   // Schedule Next Task (enforces <= 5 hours)
@@ -509,18 +452,14 @@ export default function App() {
 
   const activeVendorsCount = vendors.filter((v) => v.status === 'active').length;
 
+  if (authLoading) return <div className="min-h-screen bg-slate-950" />;
+  if (!currentSession.id) return <AuthScreen error={authError} />;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
       {/* Top Bar Header with Role-Based Navigation & Session Switcher */}
       <Header
         currentSession={currentSession}
-        onChangeSession={(sess) => {
-          setCurrentSession(sess);
-          if (sess.role === 'vendedor') setActiveTab('assigned');
-          else if (sess.role === 'supervisor') setActiveTab('monitoring');
-          else if (sess.role === 'gerencia') setActiveTab('metrics');
-          else setActiveTab('leads');
-        }}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         activeLeadsCount={activeLeadsCount}

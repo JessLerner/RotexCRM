@@ -1,12 +1,12 @@
 import React from 'react';
-import { Volume2, VolumeX, Bell, UserCheck, ShieldAlert, Users, Building2, User, Crown } from 'lucide-react';
+import { Volume2, VolumeX, Bell, ShieldAlert, Users, Building2, User, Crown, LogOut } from 'lucide-react';
 import { Vendor, UserSession, UserRole } from '../types/crm';
 import { isSoundEnabled, setSoundEnabled } from '../utils/soundAlerts';
 import { requestNotificationPermission, hasNotificationPermission, sendLeadPushNotification } from '../utils/pushNotifications';
+import { supabase } from '../lib/supabase';
 
 interface HeaderProps {
   currentSession: UserSession;
-  onChangeSession: (newSession: UserSession) => void;
   activeTab: string;
   setActiveTab: (tab: any) => void;
   activeLeadsCount: number;
@@ -16,7 +16,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentSession,
-  onChangeSession,
   activeTab,
   setActiveTab,
   activeLeadsCount,
@@ -42,58 +41,6 @@ export const Header: React.FC<HeaderProps> = ({
         'info'
       );
     }
-  };
-
-  // Extract unique supervisors from vendors
-  const supervisorNames = Array.from(new Set(vendors.map((v) => v.supervisor.trim()).filter(Boolean)));
-
-  const handleSelectRoleOrUser = (val: string) => {
-    if (val === 'admin') {
-      onChangeSession({
-        id: 'usr_admin',
-        name: 'Administración Central',
-        role: 'administracion',
-      });
-      setActiveTab('leads');
-    } else if (val === 'gerencia') {
-      onChangeSession({
-        id: 'usr_gerencia',
-        name: 'Gerencia Comercial',
-        role: 'gerencia',
-        structure: 'Dirección Comercial',
-      });
-      setActiveTab('metrics');
-    } else if (val.startsWith('sup_')) {
-      const supName = val.replace('sup_', '');
-      onChangeSession({
-        id: 'usr_sup_' + supName,
-        name: supName,
-        role: 'supervisor',
-        supervisorName: supName,
-      });
-      setActiveTab('monitoring');
-    } else if (val.startsWith('vend_')) {
-      const vId = val.replace('vend_', '');
-      const vendor = vendors.find((v) => v.id === vId);
-      if (vendor) {
-        onChangeSession({
-          id: 'usr_vend_' + vendor.id,
-          name: vendor.name,
-          role: 'vendedor',
-          vendorId: vendor.id,
-          supervisorName: vendor.supervisor,
-        });
-        setActiveTab('assigned');
-      }
-    }
-  };
-
-  const getSessionValue = () => {
-    if (currentSession.role === 'administracion') return 'admin';
-    if (currentSession.role === 'gerencia') return 'gerencia';
-    if (currentSession.role === 'supervisor') return `sup_${currentSession.supervisorName}`;
-    if (currentSession.role === 'vendedor') return `vend_${currentSession.vendorId}`;
-    return 'admin';
   };
 
   const getRoleBadge = (role: UserRole) => {
@@ -301,35 +248,9 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </nav>
 
-          {/* Zone 3: 4 Categories User Switcher & Controls */}
+          {/* Zone 3: session controls */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* CATEGORY & USER SWITCHER */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-              <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-slate-500 hidden sm:inline">Sesión:</span>
-              <select
-                value={getSessionValue()}
-                onChange={(e) => handleSelectRoleOrUser(e.target.value)}
-                className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer max-w-[170px] truncate"
-              >
-                <option value="admin">👑 Administración</option>
-                <option value="gerencia">🏢 Gerencia Comercial</option>
-                <optgroup label="👔 Supervisores">
-                  {supervisorNames.map((s) => (
-                    <option key={s} value={`sup_${s}`}>
-                      Supervisor {s}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="👤 Vendedores">
-                  {vendors.map((v) => (
-                    <option key={v.id} value={`vend_${v.id}`}>
-                      {v.name} ({v.brand})
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
+            <button onClick={() => void supabase.auth.signOut()} title="Cerrar sesión" className="p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"><LogOut className="w-4 h-4" /></button>
 
             {/* Audio chime toggle */}
             <button
