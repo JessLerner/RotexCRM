@@ -61,7 +61,7 @@ export const ClosureModal: React.FC<ClosureModalProps> = ({ lead, isOpen, onClos
           <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-start gap-2.5 text-xs text-amber-900">
             <RotateCw className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-spin-reverse" />
             <div>
-              <span className="font-bold">Regla de Reapertura Automática:</span> Al cerrar sin venta, el dato <strong>se reabrirá automáticamente</strong>, tu nota quedará registrada en el historial público y será reasignado inmediatamente a otro asesor de {lead.brand}.
+              <span className="font-bold">Cierre con trazabilidad:</span> el dato saldrá de la bandeja activa y quedará conservado en el historial con este motivo, tu nota, fecha y responsable. No se elimina.
             </div>
           </div>
         )}
@@ -153,7 +153,7 @@ export const ClosureModal: React.FC<ClosureModalProps> = ({ lead, isOpen, onClos
                 isSale ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'
               }`}
             >
-              {isSale ? 'Confirmar Venta' : 'Cerrar y Reabrir a Otro Asesor'}
+              {isSale ? 'Confirmar Venta' : 'Cerrar y Guardar en Historial'}
             </button>
           </div>
         </form>

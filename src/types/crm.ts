@@ -122,6 +122,7 @@ export interface Lead {
 
   // Rotaciones y auditoría
   rotationCount: number; // Veces que ha rotado
+  noResponseCount?: number; // Intentos "No responde" registrados en servidor (máximo cinco)
   previousVendorIds: string[]; // Historial de vendedores que tuvieron el dato
   comments: LeadComment[]; // Todos los comentarios son visibles por todos los vendedores
   closure?: LeadClosure | null;

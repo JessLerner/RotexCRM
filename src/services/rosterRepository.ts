@@ -2,7 +2,7 @@ import { Vendor, VendorStatus } from '../types/crm';
 import { supabase } from '../lib/supabase';
 
 type RosterProfile = { id: string; display_name: string; role: string; status: VendorStatus };
-type RosterMembership = { profile_id: string; reports_to: string | null; status: VendorStatus; capacity: number };
+type RosterMembership = { profile_id: string; reports_to: string | null; status: VendorStatus; capacity: number; active_assignments?: number; total_conversions?: number };
 type RosterBrand = { profile_id: string; brand_name: string };
 type RosterPayload = { profiles?: RosterProfile[]; memberships?: RosterMembership[]; seller_brands?: RosterBrand[] };
 
@@ -30,9 +30,9 @@ export async function loadRoster(): Promise<Vendor[]> {
         brand: (brands.get(profile.id) || []).join(', ') || 'Sin marca asignada',
         status: membership?.status || profile.status,
         maxAssignments: membership?.capacity || 15,
-        activeAssignments: 0,
+        activeAssignments: membership?.active_assignments || 0,
         totalAssignedCount: 0,
-        totalConversions: 0,
+        totalConversions: membership?.total_conversions || 0,
       };
     });
 }

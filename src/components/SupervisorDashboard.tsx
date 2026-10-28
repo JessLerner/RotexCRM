@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { LiveTimer } from './LiveTimers';
 import { RankingsView } from './RankingsView';
+import { OperationalMetrics } from '../services/leadRepository';
 import {
   Users,
   Clock,
@@ -26,6 +27,7 @@ interface SupervisorDashboardProps {
   onTabChange: (tab: 'monitoring' | 'team' | 'rankings') => void;
   vendors: Vendor[];
   allLeads: Lead[];
+  metrics: OperationalMetrics;
   onOpenDetail: (lead: Lead) => void;
   onOpenImportModal: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
@@ -41,6 +43,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   onTabChange,
   vendors,
   allLeads,
+  metrics,
   onOpenDetail,
   onOpenImportModal,
   onToggleVendorStatus,
@@ -124,8 +127,10 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
             <span className="text-emerald-700 font-semibold">{activeSellersCount} activos</span>
             <span>·</span>
             <span className="font-mono tabular-nums text-slate-700 font-medium">
-              {myTeamLeads.length} leads en gestión
+              {metrics.assigned} leads en gestión
             </span>
+            <span>·</span>
+            <span className="font-mono tabular-nums text-blue-700 font-medium">{metrics.queued} disponibles para asignar</span>
             <span>·</span>
             <span className="text-emerald-700 font-bold">{teamSalesCount} ventas del equipo</span>
           </div>

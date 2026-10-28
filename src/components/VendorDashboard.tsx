@@ -32,6 +32,7 @@ interface VendorDashboardProps {
   onWhatsAppClick: (lead: Lead) => void;
   onCallClick: (lead: Lead) => void;
   onRequestLead: (vendor: Vendor) => void;
+  onNoResponse: (lead: Lead) => void;
   onToggleStatus: (vendorId: string, currentStatus: Vendor['status']) => void;
   canReceiveLeads?: boolean;
 }
@@ -49,6 +50,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
   onWhatsAppClick,
   onCallClick,
   onRequestLead,
+  onNoResponse,
   onToggleStatus,
   canReceiveLeads = true,
 }) => {
@@ -410,6 +412,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
                                   >
                                     <Clock className="w-3.5 h-3.5" />
                                     <span>Próxima Tarea</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => onNoResponse(lead)}
+                                    title={lead.noResponseCount && lead.noResponseCount >= 5 ? 'Rotar dato luego de cinco intentos' : 'Registrar que no responde y reprogramar'}
+                                    className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${lead.noResponseCount && lead.noResponseCount >= 5 ? 'bg-purple-600 text-white hover:bg-purple-700' : 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
+                                  >
+                                    <span>{lead.noResponseCount && lead.noResponseCount >= 5 ? 'Rotar Dato' : 'No responde'}</span>
                                   </button>
 
                                   {/* Cerrar Dato */}

@@ -16,10 +16,22 @@ import { GerenciaDashboard } from './components/GerenciaDashboard';
 import { RankingsView } from './components/RankingsView';
 import { AuthScreen } from './components/AuthScreen';
 import { InviteSellerModal } from './components/InviteSellerModal';
+import { NoResponseModal } from './components/NoResponseModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
-import { loadImportedLeads } from './services/leadRepository';
+import {
+  closeMyLead,
+  fillRotationCupos,
+  loadOperationalLeads,
+  loadOperationalMetrics,
+  OperationalMetrics,
+  processDueRotations,
+  registerNoResponse,
+  requestNextLead,
+  rotateMyLead,
+  saveFollowUp,
+} from './services/leadRepository';
 
 import {
   Lead,
@@ -59,6 +71,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('leads');
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics>({ total: 0, queued: 0, review: 0, assigned: 0, in_progress: 0, closed_won: 0, closed_lost: 0 });
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [rotationLogs, setRotationLogs] = useState<RotationLog[]>([]);
   const [sheetConfig, setSheetConfig] = useState<GoogleSheetConfig>(getStoredSheetConfig());
@@ -77,15 +90,18 @@ export default function App() {
   const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
   const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
   const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
+  const [selectedLeadForNoResponse, setSelectedLeadForNoResponse] = useState<Lead | null>(null);
 
   const refreshRoster = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     const roster = await loadRoster();
     setVendors(roster);
   }, []);
-  const refreshImportedLeads = useCallback(async () => {
+  const refreshOperationalData = useCallback(async () => {
     if (!isSupabaseConfigured) return;
-    setLeads(await loadImportedLeads());
+    const [operationalLeads, metrics] = await Promise.all([loadOperationalLeads(), loadOperationalMetrics()]);
+    setLeads(operationalLeads);
+    setOperationalMetrics(metrics);
   }, []);
 
   useEffect(() => {
@@ -147,7 +163,7 @@ export default function App() {
     }));
 
     if (!isSupabaseConfigured) setLeads(loadedLeads);
-    setVendors(updatedVendors);
+    if (!isSupabaseConfigured) setVendors(updatedVendors);
     setRotationLogs(loadedLogs);
     setSheetConfig(loadedConfig);
 
@@ -174,8 +190,27 @@ export default function App() {
 
   useEffect(() => {
     if (!currentSession.id || !isSupabaseConfigured) return;
-    refreshImportedLeads().catch((error) => console.error('No se pudo cargar la cola importada:', error));
-  }, [currentSession.id, refreshImportedLeads]);
+    const initialiseOperationalQueue = async () => {
+      // Management profiles seed each active seller to its daily target. This is server-side,
+      // idempotent, and also distributes records that were imported before this feature existed.
+      await processDueRotations();
+      if (currentSession.role !== 'vendedor') await fillRotationCupos();
+      await refreshOperationalData();
+    };
+    initialiseOperationalQueue().catch((error) => console.error('No se pudo cargar la operación:', error));
+  }, [currentSession.id, currentSession.role, refreshOperationalData]);
+
+  // A connected Rotex session checks expired operational deadlines every minute. The database
+  // function is idempotent and locks records, so multiple open sessions cannot rotate a lead twice.
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured) return;
+    const timer = window.setInterval(() => {
+      processDueRotations()
+        .then((rotated) => rotated > 0 ? Promise.all([refreshOperationalData(), refreshRoster()]) : undefined)
+        .catch((error) => console.error('No se pudieron procesar rotaciones vencidas:', error));
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [currentSession.id, refreshOperationalData, refreshRoster]);
 
   // WhatsApp click handler
   const handleWhatsAppClick = (lead: Lead) => {
@@ -194,8 +229,21 @@ export default function App() {
   };
 
   // Schedule Next Task (enforces <= 5 hours)
-  const handleScheduleTask = (taskData: Omit<ScheduledTask, 'id' | 'createdAt' | 'completed'>) => {
+  const handleScheduleTask = async (taskData: Omit<ScheduledTask, 'id' | 'createdAt' | 'completed'>) => {
     if (!selectedLeadForTask) return;
+
+    if (isSupabaseConfigured) {
+      const minutes = Math.max(15, Math.min(300, Math.round((new Date(taskData.dueAt).getTime() - Date.now()) / 60000)));
+      try {
+        await saveFollowUp(selectedLeadForTask.id, taskData.description, taskData.type, minutes);
+        await refreshOperationalData();
+        await refreshRoster();
+        setSelectedLeadForTask(null);
+      } catch (error: any) {
+        window.alert(`No se pudo programar la tarea: ${error.message}`);
+      }
+      return;
+    }
 
     const lead = selectedLeadForTask;
     const nowIso = new Date().toISOString();
@@ -245,8 +293,20 @@ export default function App() {
   };
 
   // Closure handling (Venta or Non-Sale with Automatic Reopening)
-  const handleConfirmClosure = (outcome: ClosureOutcome, notes: string) => {
+  const handleConfirmClosure = async (outcome: ClosureOutcome, notes: string) => {
     if (!selectedLeadForClosure) return;
+
+    if (isSupabaseConfigured) {
+      try {
+        await closeMyLead(selectedLeadForClosure.id, outcome, notes);
+        await refreshOperationalData();
+        await refreshRoster();
+        setSelectedLeadForClosure(null);
+      } catch (error: any) {
+        window.alert(`No se pudo registrar el cierre: ${error.message}`);
+      }
+      return;
+    }
 
     const lead = selectedLeadForClosure;
     const currentVendor = vendors.find((v) => v.id === lead.currentVendorId);
@@ -409,7 +469,18 @@ export default function App() {
   };
 
   // VENDOR: Request Lead Module ("Pedir Dato")
-  const handleVendorRequestLead = (vendor: Vendor) => {
+  const handleVendorRequestLead = async (vendor: Vendor) => {
+    if (isSupabaseConfigured) {
+      try {
+        const result = await requestNextLead();
+        if (!result.assigned) window.alert(result.reason || 'En este momento no hay datos disponibles para asignar.');
+        await refreshOperationalData();
+        await refreshRoster();
+      } catch (error: any) {
+        window.alert(`No se pudo asignar el dato: ${error.message}`);
+      }
+      return;
+    }
     // Look for an unassigned lead for this brand
     const normBrand = vendor.brand.trim().toLowerCase();
     const candidateLead = leads.find((l) => {
@@ -483,6 +554,19 @@ export default function App() {
     }
   };
 
+  const handleNoResponse = async (afterMinutes: number, notes: string) => {
+    if (!selectedLeadForNoResponse) return;
+    await registerNoResponse(selectedLeadForNoResponse.id, afterMinutes, notes);
+    await refreshOperationalData();
+  };
+
+  const handleRotateLead = async () => {
+    if (!selectedLeadForNoResponse) return;
+    await rotateMyLead(selectedLeadForNoResponse.id);
+    await refreshOperationalData();
+    await refreshRoster();
+  };
+
   // A vendedor account exists in Supabase before its commercial roster is enabled.
   // Render an informative workspace instead of a blank screen in that interim state.
   const loggedVendor = vendors.find((v) => v.id === currentSession.vendorId);
@@ -544,6 +628,7 @@ export default function App() {
             onWhatsAppClick={handleWhatsAppClick}
             onCallClick={handleCallClick}
             onRequestLead={handleVendorRequestLead}
+            onNoResponse={(lead) => setSelectedLeadForNoResponse(lead)}
             onToggleStatus={handleToggleVendorStatus}
             canReceiveLeads={Boolean(loggedVendor)}
           />
@@ -557,6 +642,7 @@ export default function App() {
             onTabChange={setActiveTab}
             vendors={vendors}
             allLeads={leads}
+            metrics={operationalMetrics}
             onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
             onOpenImportModal={() => setIsImportModalOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
@@ -574,6 +660,7 @@ export default function App() {
             onTabChange={setActiveTab}
             vendors={vendors}
             leads={leads}
+            metrics={operationalMetrics}
             onOpenImportModal={() => setIsImportModalOpen(true)}
             onOpenInviteSeller={() => setIsInviteSellerOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
@@ -687,6 +774,16 @@ export default function App() {
         />
       )}
 
+      {selectedLeadForNoResponse && (
+        <NoResponseModal
+          lead={selectedLeadForNoResponse}
+          isOpen={true}
+          onClose={() => setSelectedLeadForNoResponse(null)}
+          onConfirm={handleNoResponse}
+          onRotate={handleRotateLead}
+        />
+      )}
+
       {isSyncModalOpen && (
         <GoogleSheetSyncModal
           isOpen={isSyncModalOpen}
@@ -706,7 +803,13 @@ export default function App() {
           currentUserRole={currentSession.role}
           currentSupervisorName={currentSession.supervisorName}
           currentStructure={currentSession.structure}
-          onImportLeads={(rows) => importFoxLeads('fox-crm.csv', rows)}
+          onImportLeads={async (rows) => {
+            const result = await importFoxLeads('fox-crm.csv', rows);
+            await fillRotationCupos();
+            await refreshOperationalData();
+            await refreshRoster();
+            return result;
+          }}
         />
       )}
       <InviteSellerModal isOpen={isInviteSellerOpen} onClose={() => setIsInviteSellerOpen(false)} onInvite={handleAddNewVendorToTeam} />

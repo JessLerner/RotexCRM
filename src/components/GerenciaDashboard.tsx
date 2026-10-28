@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { RankingsView } from './RankingsView';
+import { OperationalMetrics } from '../services/leadRepository';
 import {
   TrendingUp,
   BarChart3,
@@ -22,6 +23,7 @@ interface GerenciaDashboardProps {
   onTabChange: (tab: 'metrics' | 'structure' | 'rankings') => void;
   vendors: Vendor[];
   leads: Lead[];
+  metrics: OperationalMetrics;
   onOpenImportModal: () => void;
   onOpenInviteSeller: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
@@ -34,6 +36,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   onTabChange,
   vendors,
   leads,
+  metrics,
   onOpenImportModal,
   onOpenInviteSeller,
   onToggleVendorStatus,
@@ -42,14 +45,12 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
 }) => {
 
   // Compute Gerencia Statistics
-  const totalCargados = leads.length;
+  const totalCargados = metrics.total;
   const totalActivos = leads.filter(
     (l) => l.status === 'pending_contact' || l.status === 'in_progress' || l.status === 'reopened'
-  ).length;
-  const totalVentas = leads.filter((l) => l.status === 'closed_won').length;
-  const totalCerradosNoVenta = leads.filter(
-    (l) => l.closure && l.closure.outcome !== 'venta'
-  ).length;
+  ).length || metrics.assigned;
+  const totalVentas = metrics.closed_won;
+  const totalCerradosNoVenta = metrics.closed_lost;
   const totalCerrados = totalVentas + totalCerradosNoVenta;
 
   // Compute Average Response Time (minutes from assignedAt to firstGestionAt)
@@ -130,7 +131,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           <div className="text-2xl font-bold font-mono tabular-nums text-slate-900 mt-1">
             {totalCargados}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Ingresados desde Fox CRM</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Total real almacenado · no es una muestra de pantalla</div>
         </div>
 
         {/* 2. Datos Activos */}
@@ -142,7 +143,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           <div className="text-2xl font-bold font-mono tabular-nums text-blue-600 mt-1">
             {totalActivos}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">En rotación comercial activa</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">{metrics.queued} disponibles · {metrics.review} en revisión</div>
         </div>
 
         {/* 3. Datos Cerrados */}

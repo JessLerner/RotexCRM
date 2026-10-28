@@ -38,6 +38,20 @@ Acción inmediata:
 
 No hace falta borrar ni importar de nuevo la base de prueba: los registros existentes deberían quedar disponibles tras esta corrección.
 
+## Ciclo operativo implementado — pendiente de aplicar en Supabase
+
+La migración `20261028150000_operational_lead_lifecycle.sql` incorpora el circuito operativo real:
+
+- Al completar cupos, asigna hasta el objetivo diario de cada vendedor activo (5 por defecto, configurable entre 1 y 10), sin superar su capacidad máxima.
+- Respeta la marca del vendedor y permite que la cartera sin marca se asigne a cualquier vendedor elegible.
+- La asignación, el pedido de un nuevo dato, las reprogramaciones, las rotaciones y los cierres ocurren en Supabase de forma atómica; no dependen de datos guardados en el navegador.
+- Los plazos operativos solo avanzan entre 09:00 y 20:00 de Argentina. En esta primera regla la franja se aplica todos los días; si se decide excluir fines de semana se modifica centralmente en la función de calendario.
+- `No responde` permite cinco reprogramaciones de 15 minutos a 5 horas hábiles. En el sexto intento obliga a rotar el dato a otro asesor elegible o dejarlo en cola si no hubiera nadie disponible.
+- El cierre archiva el lead con motivo, nota, responsable y fecha; lo retira de la bandeja activa, pero no lo elimina.
+- Mientras haya una sesión Rotex abierta, se revisan vencimientos cada minuto de forma segura. Para automatización sin usuarios conectados se agregará una tarea programada de servidor en una etapa posterior.
+
+La migración debe aplicarse antes de publicar el frontend que la utiliza.
+
 ## Verificaciones de despliegue pendientes
 
 - [ ] Cloudflare terminó correctamente el último despliegue posterior a los arreglos de `AuthScreen`.
@@ -112,6 +126,7 @@ La aplicación real debe verificarse en Supabase; la confirmación de `Success` 
 | `20261028143000_expose_import_queue.sql` | Cola visible en la app | Por verificar |
 | `20261028144000_limit_import_queue_read.sql` | Límite de cola (generó ambigüedad) | No es solución final |
 | `20261028145000_fix_import_queue_rpc.sql` | Elimina ambigüedad y limita a 200 | **Pendiente crítico** |
+| `20261028150000_operational_lead_lifecycle.sql` | Asignación, gestión, rotación, cierres, horarios y métricas reales | **Pendiente de aplicar antes del nuevo despliegue** |
 
 ## Orden recomendado
 
