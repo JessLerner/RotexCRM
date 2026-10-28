@@ -54,6 +54,7 @@ export default function App() {
   });
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [passwordSetup, setPasswordSetup] = useState(() => /type=(invite|recovery)/.test(window.location.hash));
 
   const [activeTab, setActiveTab] = useState<string>('leads');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -109,7 +110,8 @@ export default function App() {
       if (data.session) void loadProfile(data.session.user.id);
       else setAuthLoading(false);
     });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || /type=(invite|recovery)/.test(window.location.hash)) setPasswordSetup(true);
       if (session) void loadProfile(session.user.id);
       else {
         setCurrentSession({ id: '', name: '', role: 'vendedor' });
@@ -500,6 +502,7 @@ export default function App() {
   const activeVendorsCount = vendors.filter((v) => v.status === 'active').length;
 
   if (authLoading) return <div className="min-h-screen bg-slate-950" />;
+  if (passwordSetup) return <AuthScreen error={authError} passwordSetup onPasswordUpdated={() => setPasswordSetup(false)} />;
   if (!currentSession.id) return <AuthScreen error={authError} />;
 
   return (
