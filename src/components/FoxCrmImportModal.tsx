@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Download, RefreshCw, Car, ShieldCheck } from 'lucide-react';
-import { parseCSV, matchFoxCrmColumns } from '../utils/csvParser';
+import { decodeCsvFile, parseCSV, matchFoxCrmColumns } from '../utils/csvParser';
 import { UserRole } from '../types/crm';
 import { sendLeadPushNotification } from '../utils/pushNotifications';
 import { FoxImportResult, FoxLeadImportRow } from '../services/foxImportRepository';
@@ -69,10 +69,9 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target?.result as string;
-      processCsvText(text);
+      processCsvText(decodeCsvFile(event.target?.result as ArrayBuffer));
     };
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsArrayBuffer(file);
   };
 
   const processCsvText = (text: string) => {
@@ -117,10 +116,13 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
     setIsProcessing(true);
     setError(null);
     const rows: FoxLeadImportRow[] = parsedRows.flatMap((row, idx) => {
-      const clientName = (columnMap.clientName ? row[columnMap.clientName] : '').trim();
+      const clientName = [columnMap.clientName ? row[columnMap.clientName] : '', columnMap.lastName ? row[columnMap.lastName] : '']
+        .map((value) => value.trim()).filter(Boolean).join(' ');
       if (!clientName) return [];
 
-      const brand = (columnMap.brand ? row[columnMap.brand] : 'General').trim();
+      const explicitBrand = (columnMap.brand ? row[columnMap.brand] : '').trim();
+      const brandSignals = [columnMap.sourceTeam, columnMap.sourceOrigin, columnMap.modelInterest].map((column) => column ? row[column] : '').join(' ');
+      const brand = explicitBrand || (brandSignals.match(/peugeot|ford|volkswagen|toyota|chevrolet|fiat|citro[eë]n|renault|jeep|ram/i)?.[0] || 'General');
       return [{
         foxLeadId: (columnMap.foxLeadId ? row[columnMap.foxLeadId] : '').trim() || `FOX-${idx + 1001}`,
         clientName,
@@ -132,6 +134,7 @@ export const FoxCrmImportModal: React.FC<FoxCrmImportModalProps> = ({
         foxOriginalCloseReason: (columnMap.foxOriginalCloseReason ? row[columnMap.foxOriginalCloseReason] : '').trim(),
         foxBranch: (columnMap.foxBranch ? row[columnMap.foxBranch] : '').trim(),
         foxNotes: (columnMap.foxNotes ? row[columnMap.foxNotes] : '').trim(),
+        sourceMetadata: Object.fromEntries([['sourceStatus', columnMap.sourceStatus], ['sourceOrigin', columnMap.sourceOrigin], ['sourceTeam', columnMap.sourceTeam], ['sourceManager', columnMap.sourceManager]].map(([key, column]) => [key, column ? row[column].trim() : '']).filter(([, value]) => Boolean(value))),
       }];
     });
 
@@ -354,6 +357,7 @@ FOX-7825;Rodrigo Funes;5491176543210;rfunes@transporte.com;Volkswagen;Nivus High
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 {[
                   { key: 'clientName', label: 'Nombre del Cliente / Contacto *', required: true },
+                  { key: 'lastName', label: 'Apellido (se combina con Nombre)', required: false },
                   { key: 'brand', label: 'Marca del Vehículo (Clave para asignación) *', required: true },
                   { key: 'phone', label: 'Teléfono / WhatsApp', required: false },
                   { key: 'email', label: 'Correo Electrónico', required: false },

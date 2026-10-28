@@ -4,6 +4,20 @@ export interface ParsedCsvResult {
   delimiter: string;
 }
 
+/** Decodes Fox exports that mix a `sep=,` ASCII prefix with Windows-1252 text padded by NUL bytes. */
+export function decodeCsvFile(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const hasUtf16Bom = bytes.length > 1 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff));
+  if (hasUtf16Bom) return new TextDecoder(bytes[0] === 0xff ? 'utf-16le' : 'utf-16be').decode(bytes).replace(/^\uFEFF/, '');
+  try {
+    const utf8 = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (!utf8.includes('\u0000')) return utf8;
+  } catch {
+    // Legacy Fox export; handled below.
+  }
+  return new TextDecoder('windows-1252').decode(bytes).replace(/\u0000/g, '');
+}
+
 /**
  * Universal CSV parser supporting comma, semicolon, and tab delimiters,
  * multi-line quoted fields, escaped quotes, and trimmed values.
@@ -13,14 +27,18 @@ export function parseCSV(content: string): ParsedCsvResult {
     return { headers: [], rows: [], delimiter: ',' };
   }
 
-  // Detect delimiter by inspecting the first line
-  const firstLine = content.split(/\r\n|\n|\r/)[0] || '';
+  let normalizedContent = content.replace(/^\uFEFF/, '').replace(/\u0000/g, '');
+  const separatorDirective = normalizedContent.match(/^\s*sep\s*=\s*([,;\t])\s*(?:\r\n|\n|\r)/i);
+  const forcedDelimiter = separatorDirective?.[1];
+  if (separatorDirective) normalizedContent = normalizedContent.slice(separatorDirective[0].length);
+  // Detect delimiter by inspecting the header, after an optional Excel/Fox `sep=` directive.
+  const firstLine = normalizedContent.split(/\r\n|\n|\r/)[0] || '';
   const commaCount = (firstLine.match(/,/g) || []).length;
   const semicolonCount = (firstLine.match(/;/g) || []).length;
   const tabCount = (firstLine.match(/\t/g) || []).length;
 
-  let delimiter = ',';
-  if (semicolonCount > commaCount && semicolonCount > tabCount) {
+  let delimiter = forcedDelimiter || ',';
+  if (!forcedDelimiter && semicolonCount > commaCount && semicolonCount > tabCount) {
     delimiter = ';';
   } else if (tabCount > commaCount && tabCount > semicolonCount) {
     delimiter = '\t';
@@ -31,9 +49,9 @@ export function parseCSV(content: string): ParsedCsvResult {
   let currentField = '';
   let insideQuotes = false;
 
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    const nextChar = content[i + 1];
+  for (let i = 0; i < normalizedContent.length; i++) {
+    const char = normalizedContent[i];
+    const nextChar = normalizedContent[i + 1];
 
     if (char === '"') {
       if (insideQuotes && nextChar === '"') {
@@ -114,6 +132,11 @@ export function matchFoxCrmColumns(headers: string[]): Record<string, string> {
     foxOriginalCloseReason: '',
     foxBranch: '',
     foxNotes: '',
+    lastName: '',
+    sourceStatus: '',
+    sourceOrigin: '',
+    sourceTeam: '',
+    sourceManager: '',
   };
 
   headers.forEach((header) => {
@@ -127,6 +150,7 @@ export function matchFoxCrmColumns(headers: string[]): Record<string, string> {
     if (!mapping.clientName && (k.includes('nombre') || k.includes('cliente') || k.includes('contacto') || k.includes('razonsocial'))) {
       mapping.clientName = header;
     }
+    if (!mapping.lastName && (k === 'apellido' || k.includes('apellidos'))) mapping.lastName = header;
     // Phone
     if (!mapping.phone && (k.includes('telefono') || k.includes('celular') || k.includes('whatsapp') || k.includes('movil') || k === 'tel')) {
       mapping.phone = header;
@@ -159,6 +183,10 @@ export function matchFoxCrmColumns(headers: string[]): Record<string, string> {
     if (!mapping.foxNotes && (k.includes('nota') || k.includes('observacion') || k.includes('comentario') || k.includes('detalle'))) {
       mapping.foxNotes = header;
     }
+    if (!mapping.sourceStatus && k === 'estado') mapping.sourceStatus = header;
+    if (!mapping.sourceOrigin && (k === 'origen' || k.includes('sitiodeorigen'))) mapping.sourceOrigin = header;
+    if (!mapping.sourceTeam && k.includes('equipodeventa')) mapping.sourceTeam = header;
+    if (!mapping.sourceManager && (k.includes('usuariogestion') || k.includes('gestor'))) mapping.sourceManager = header;
   });
 
   return mapping;
