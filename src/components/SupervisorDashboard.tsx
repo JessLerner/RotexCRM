@@ -22,19 +22,23 @@ import {
 
 interface SupervisorDashboardProps {
   supervisorName: string;
+  activeTab: 'monitoring' | 'team' | 'rankings';
+  onTabChange: (tab: 'monitoring' | 'team' | 'rankings') => void;
   vendors: Vendor[];
   allLeads: Lead[];
   onOpenDetail: (lead: Lead) => void;
   onOpenImportModal: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
   onUpdateVendorCapacity: (vendorId: string, newMax: number) => void;
-  onAddNewVendorToTeam: (newVendor: { name: string; brand: string; phone?: string; maxAssignments: number }) => void;
+  onAddNewVendorToTeam: (newVendor: { name: string; email: string; maxAssignments: number }) => Promise<void>;
   onWhatsAppClick: (lead: Lead) => void;
   onCallClick: (lead: Lead) => void;
 }
 
 export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   supervisorName,
+  activeTab,
+  onTabChange,
   vendors,
   allLeads,
   onOpenDetail,
@@ -45,12 +49,11 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   onWhatsAppClick,
   onCallClick,
 }) => {
-  const [activeTab, setActiveTab] = useState<'monitoring' | 'team' | 'rankings'>('monitoring');
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [newVendorName, setNewVendorName] = useState('');
-  const [newVendorBrand, setNewVendorBrand] = useState('Toyota');
-  const [newVendorPhone, setNewVendorPhone] = useState('');
+  const [newVendorEmail, setNewVendorEmail] = useState('');
   const [newVendorCapacity, setNewVendorCapacity] = useState(15);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Filter sellers of this supervisor
   const myVendors = vendors.filter(
@@ -85,20 +88,23 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   const activeSellersCount = myVendors.filter((v) => v.status === 'active').length;
   const teamSalesCount = myVendors.reduce((acc, v) => acc + (v.totalConversions || 0), 0);
 
-  const handleCreateVendor = (e: React.FormEvent) => {
+  const handleCreateVendor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newVendorName.trim()) return;
+    if (!newVendorName.trim() || !newVendorEmail.trim()) return;
 
-    onAddNewVendorToTeam({
-      name: newVendorName.trim(),
-      brand: newVendorBrand.trim(),
-      phone: newVendorPhone.trim(),
-      maxAssignments: newVendorCapacity || 15,
-    });
-
-    setNewVendorName('');
-    setNewVendorPhone('');
-    setIsAddVendorOpen(false);
+    try {
+      setInviteError(null);
+      await onAddNewVendorToTeam({
+        name: newVendorName.trim(),
+        email: newVendorEmail.trim(),
+        maxAssignments: newVendorCapacity || 15,
+      });
+      setNewVendorName('');
+      setNewVendorEmail('');
+      setIsAddVendorOpen(false);
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'No se pudo enviar la invitación.');
+    }
   };
 
   return (
@@ -155,9 +161,9 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
+      <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
         <button
-          onClick={() => setActiveTab('monitoring')}
+          onClick={() => onTabChange('monitoring')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'monitoring'
               ? 'border-blue-600 text-blue-600'
@@ -171,7 +177,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
           </span>
         </button>
         <button
-          onClick={() => setActiveTab('team')}
+          onClick={() => onTabChange('team')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'team'
               ? 'border-blue-600 text-blue-600'
@@ -182,7 +188,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
           <span>Mis Vendedores ({myVendors.length})</span>
         </button>
         <button
-          onClick={() => setActiveTab('rankings')}
+          onClick={() => onTabChange('rankings')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'rankings'
               ? 'border-blue-600 text-blue-600'
@@ -348,13 +354,6 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
                 Podés marcar si están activos o en pausa para recibir datos de la rotación y definir sus capacidades
               </p>
             </div>
-            <button
-              onClick={() => setIsAddVendorOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Nuevo Asesor</span>
-            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -446,6 +445,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
             </p>
 
             <form onSubmit={handleCreateVendor} className="space-y-3 text-xs">
+              {inviteError && <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-700">{inviteError}</p>}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Nombre Completo del Asesor *</label>
                 <input
@@ -459,26 +459,16 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Marca Asignada para Vender *</label>
+                <label className="block font-semibold text-slate-700 mb-1">Correo electrónico *</label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="Ej. Toyota, Volkswagen, Ford..."
-                  value={newVendorBrand}
-                  onChange={(e) => setNewVendorBrand(e.target.value)}
+                  placeholder="asesor@empresa.com"
+                  value={newVendorEmail}
+                  onChange={(e) => setNewVendorEmail(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Teléfono / WhatsApp</label>
-                <input
-                  type="text"
-                  placeholder="54911..."
-                  value={newVendorPhone}
-                  onChange={(e) => setNewVendorPhone(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+                <p className="mt-1 text-[11px] text-slate-500">Recibirá una invitación para crear su contraseña. La marca se hereda del equipo.</p>
               </div>
 
               <div>

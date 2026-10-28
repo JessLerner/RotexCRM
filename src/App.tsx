@@ -17,6 +17,7 @@ import { RankingsView } from './components/RankingsView';
 import { AuthScreen } from './components/AuthScreen';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
+import { loadRoster } from './services/rosterRepository';
 
 import {
   Lead,
@@ -91,7 +92,7 @@ export default function App() {
         setAuthLoading(false);
         return;
       }
-      setCurrentSession({ id: data.id, name: data.display_name, role: data.role, vendorId: data.role === 'vendedor' ? data.id : undefined });
+      setCurrentSession({ id: data.id, name: data.display_name, role: data.role, vendorId: data.role === 'vendedor' ? data.id : undefined, supervisorName: data.role === 'supervisor' ? data.display_name : undefined });
       setAuthError(null);
       setAuthLoading(false);
     };
@@ -113,7 +114,7 @@ export default function App() {
   // Load state from local storage & server
   const reloadState = useCallback(() => {
     const loadedLeads = getStoredLeads();
-    const loadedVendors = getStoredVendors();
+    const loadedVendors = isSupabaseConfigured ? [] : getStoredVendors();
     const loadedLogs = getStoredRotationLogs();
     const loadedConfig = getStoredSheetConfig();
 
@@ -149,6 +150,12 @@ export default function App() {
     const unsub = subscribeToSync(reloadState);
     return unsub;
   }, [reloadState]);
+
+  // Personnel is always loaded from Supabase. This deliberately replaces the old demo roster.
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured) return;
+    loadRoster().then(setVendors).catch((error) => console.error('No se pudo cargar la nómina:', error));
+  }, [currentSession.id]);
 
   // WhatsApp click handler
   const handleWhatsAppClick = (lead: Lead) => {
@@ -328,35 +335,16 @@ export default function App() {
   };
 
   // Add new vendor to a supervisor team
-  const handleAddNewVendorToTeam = (newVendorData: {
+  const handleAddNewVendorToTeam = async (newVendorData: {
     name: string;
-    brand: string;
-    phone?: string;
+    email: string;
     maxAssignments: number;
   }) => {
-    const supervisorName = currentSession.supervisorName || 'Mariana López';
-    const newVendor: Vendor = {
-      id: 'v_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      name: newVendorData.name,
-      brand: newVendorData.brand,
-      supervisor: supervisorName,
-      status: 'active',
-      maxAssignments: newVendorData.maxAssignments || 15,
-      activeAssignments: 0,
-      phone: newVendorData.phone || '',
-      totalAssignedCount: 0,
-      totalConversions: 0,
-    };
-
-    const updated = [newVendor, ...vendors];
-    saveStoredVendors(updated);
-    reloadState();
-
-    sendLeadPushNotification(
-      'Nuevo Asesor Registrado',
-      `${newVendor.name} fue agregado a la nómina del equipo de ${supervisorName} (${newVendor.brand}).`,
-      'assignment'
-    );
+    const { data, error } = await supabase.functions.invoke('invite-team-member', { body: newVendorData });
+    if (error || data?.error) throw new Error(data?.error || error.message);
+    const roster = await loadRoster();
+    setVendors(roster);
+    sendLeadPushNotification('Invitación enviada', `${newVendorData.name} recibirá un correo para crear su contraseña.`, 'assignment');
   };
 
   // Update vendor capacity
@@ -507,7 +495,9 @@ export default function App() {
         {/* ==================== 2. SUPERVISORES VIEW ==================== */}
         {currentSession.role === 'supervisor' && (
           <SupervisorDashboard
-            supervisorName={currentSession.supervisorName || 'Mariana López'}
+            supervisorName={currentSession.name}
+            activeTab={activeTab === 'team' || activeTab === 'rankings' ? activeTab : 'monitoring'}
+            onTabChange={setActiveTab}
             vendors={vendors}
             allLeads={leads}
             onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
@@ -523,6 +513,8 @@ export default function App() {
         {/* ==================== 3. GERENCIA VIEW ==================== */}
         {currentSession.role === 'gerencia' && (
           <GerenciaDashboard
+            activeTab={activeTab === 'structure' || activeTab === 'rankings' ? activeTab : 'metrics'}
+            onTabChange={setActiveTab}
             vendors={vendors}
             leads={leads}
             onOpenImportModal={() => setIsImportModalOpen(true)}

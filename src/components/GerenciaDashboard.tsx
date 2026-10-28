@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { RankingsView } from './RankingsView';
 import {
@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 
 interface GerenciaDashboardProps {
+  activeTab: 'metrics' | 'structure' | 'rankings';
+  onTabChange: (tab: 'metrics' | 'structure' | 'rankings') => void;
   vendors: Vendor[];
   leads: Lead[];
   onOpenImportModal: () => void;
@@ -27,6 +29,8 @@ interface GerenciaDashboardProps {
 }
 
 export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
+  activeTab,
+  onTabChange,
   vendors,
   leads,
   onOpenImportModal,
@@ -34,7 +38,6 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   onToggleSupervisorTeamStatus,
   onOpenLeadDetail,
 }) => {
-  const [activeTab, setActiveTab] = useState<'metrics' | 'structure' | 'rankings'>('metrics');
 
   // Compute Gerencia Statistics
   const totalCargados = leads.length;
@@ -180,9 +183,9 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
+      <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
         <button
-          onClick={() => setActiveTab('metrics')}
+          onClick={() => onTabChange('metrics')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'metrics'
               ? 'border-indigo-600 text-indigo-600'
@@ -193,7 +196,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           <span>Ranking por Equipos de Venta</span>
         </button>
         <button
-          onClick={() => setActiveTab('structure')}
+          onClick={() => onTabChange('structure')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'structure'
               ? 'border-indigo-600 text-indigo-600'
@@ -204,7 +207,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           <span>Control de Estructura (Supervisores y Vendedores)</span>
         </button>
         <button
-          onClick={() => setActiveTab('rankings')}
+          onClick={() => onTabChange('rankings')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${
             activeTab === 'rankings'
               ? 'border-indigo-600 text-indigo-600'
