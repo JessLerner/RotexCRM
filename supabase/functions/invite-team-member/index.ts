@@ -32,7 +32,7 @@ Deno.serve(async (request) => {
     const { data: inheritedBrands } = await admin.from('seller_brands').select('brand_id').eq('profile_id', supervisorId);
     if (!inheritedBrands?.length) throw new Error('Tu equipo todavía no tiene una marca asignada');
 
-    const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.jlerner-nave.workers.dev';
+    const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
       data: { display_name: name.trim() },
       redirectTo: `${appUrl}/auth/activate`,
