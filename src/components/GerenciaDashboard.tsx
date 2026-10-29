@@ -21,6 +21,7 @@ import {
   Flame,
   ArrowUpRight,
   Edit3,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface GerenciaDashboardProps {
