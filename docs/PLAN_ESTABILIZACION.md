@@ -27,3 +27,5 @@ Este plan prioriza seguridad comercial y operación real antes de sumar pantalla
 1. Pruebas de regresión por rol antes de cada despliegue: Administración, Gerencia, Supervisión y Vendedor.
 2. Registro de migraciones aplicadas y una lista de verificación de despliegue.
 3. Reemplazar vistas locales heredadas por lecturas paginadas y permisos de servidor donde todavía correspondan.
+
+La lista ejecutable de control previo a un despliegue está en `docs/PRUEBAS_REGRESION.md`.

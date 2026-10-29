@@ -6,6 +6,7 @@ import { LeadsBoard } from './components/LeadsBoard';
 import { LeadPortfolio } from './components/LeadPortfolio';
 import { StaffDirectory } from './components/StaffDirectory';
 import { AdminControlDashboard } from './components/AdminControlDashboard';
+import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { RotationLogsView } from './components/RotationLogsView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { TaskModal } from './components/TaskModal';
@@ -109,6 +110,8 @@ export default function App() {
   const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
   const [memberBrandNames, setMemberBrandNames] = useState<Map<string, string[]>>(new Map());
   const [presence, setPresence] = useState<PresenceRecord[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [whatsappTemplate, setWhatsappTemplate] = useState('Hola {{nombre}}, ¿cómo estás? Te contacto por tu consulta sobre {{marca}} {{modelo}}.');
 
   useEffect(() => {
     document.documentElement.classList.toggle('theme-dark', darkMode);
@@ -277,7 +280,7 @@ export default function App() {
   const handleWhatsAppClick = (lead: Lead) => {
     const cleanPhone = (lead.phone || '').replace(/[^0-9]/g, '');
     const greeting = encodeURIComponent(
-      `Hola ${lead.clientName}, ¿cómo estás? Te contacto de la concesionaria oficial ${lead.brand} respecto a tu consulta por el ${lead.modelInterest || 'vehículo'}. ¿Seguís interesado/a en la entrega inmediata o financiación?`
+      whatsappTemplate.replaceAll('{{nombre}}', lead.clientName).replaceAll('{{marca}}', lead.brand).replaceAll('{{modelo}}', lead.modelInterest || 'vehículo')
     );
 
     const waUrl = `https://wa.me/${cleanPhone}?text=${greeting}`;
@@ -567,6 +570,15 @@ export default function App() {
     reloadState();
   };
 
+  const handleAdminUpdateStaff = async (memberId: string, status: VendorStatus, role: string) => {
+    try {
+      const { error } = await supabase.rpc('admin_update_staff_member', { p_member_id: memberId, p_status: status, p_role: role });
+      if (error) throw error;
+      await fillRotationCupos();
+      await Promise.all([refreshRoster(), refreshStructureOptions(), refreshOperationalData(), loadPresenceReport().then(setPresence)]);
+    } catch (error: any) { window.alert(`No se pudo actualizar a la persona: ${error.message}`); }
+  };
+
   // VENDOR: Request Lead Module ("Pedir Dato")
   const handleVendorRequestLead = async (vendor: Vendor) => {
     if (isSupabaseConfigured) {
@@ -710,6 +722,7 @@ export default function App() {
         vendors={vendors}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((current) => !current)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main View Port according to Role */}
@@ -792,38 +805,9 @@ export default function App() {
                 onOpenRoster={() => setActiveTab('vendors')}
               />
             )}
-            {activeTab === 'leads' && <LeadPortfolio onImport={() => setIsImportModalOpen(true)} onReview={() => setIsImportReviewOpen(true)} />}
+            {activeTab === 'leads' && <LeadPortfolio onImport={() => setIsImportModalOpen(true)} onReview={() => setIsImportReviewOpen(true)} canManage vendors={vendors} />}
 
-            {activeTab === 'vendors' && (
-              <div className="space-y-4">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6"><StaffDirectory people={structurePeople} /></div>
-                <VendorsBar
-                  vendors={vendors}
-                  statusFilter={vendorStatusFilter}
-                  setStatusFilter={setVendorStatusFilter}
-                  volumeFilter={vendorVolumeFilter}
-                  setVolumeFilter={setVendorVolumeFilter}
-                  brandFilter={vendorBrandFilter}
-                  setBrandFilter={setVendorBrandFilter}
-                  searchQuery={vendorSearchQuery}
-                  setSearchQuery={setVendorSearchQuery}
-                  onOpenSyncModal={() => setIsSyncModalOpen(true)}
-                  onToggleStatus={handleToggleVendorStatus}
-                  onAddManualVendor={() => setIsInviteSellerOpen(true)}
-                />
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-                  <VendorsTable
-                    vendors={vendors}
-                    onToggleStatus={handleToggleVendorStatus}
-                    onUpdateMaxCapacity={handleUpdateVendorMaxCapacity}
-                    onSetAvailability={handleSetVendorAvailability}
-                    onManageVendor={(vendor) => setVendorToManage(vendor)}
-                    onDeleteVendor={(vendorId) => { const vendor = vendors.find((item) => item.id === vendorId); if (vendor) void handleRetireVendor(vendor); }}
-                    onOpenSyncModal={() => setIsSyncModalOpen(true)}
-                  />
-                </div>
-              </div>
-            )}
+            {activeTab === 'vendors' && <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"><StaffDirectory people={structurePeople} vendors={vendors} onInvite={() => setIsInviteSellerOpen(true)} onUpdate={(id,status,role) => void handleAdminUpdateStaff(id,status,role)} onUpdateCapacity={(id,capacity) => void handleUpdateVendorMaxCapacity(id,capacity)} /></div>}
 
             {activeTab === 'rankings' && (
               <RankingsView vendors={vendors} leads={leads} showSupervisorRanking={true} />
@@ -846,6 +830,7 @@ export default function App() {
 
       {/* Floating Push Toast Alerts */}
       <ToastContainer />
+      {isSettingsOpen && <ProfileSettingsModal role={currentSession.role} vendors={currentSession.role === 'supervisor' ? vendors.filter((vendor) => vendor.supervisor === currentSession.name) : vendors} onClose={() => setIsSettingsOpen(false)} onTemplateUpdated={setWhatsappTemplate} />}
 
       {/* Modals */}
       {selectedLeadForDetail && (

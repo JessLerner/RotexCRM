@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Bell, ShieldAlert, Users, Building2, User, Crown, LogOut, Moon, Sun } from 'lucide-react';
+import { Volume2, VolumeX, Bell, ShieldAlert, Users, Building2, User, Crown, LogOut, Moon, Sun, Settings } from 'lucide-react';
 import { Vendor, UserSession, UserRole } from '../types/crm';
 import { isSoundEnabled, setSoundEnabled } from '../utils/soundAlerts';
 import { requestNotificationPermission, hasNotificationPermission, sendLeadPushNotification } from '../utils/pushNotifications';
@@ -14,6 +14,7 @@ interface HeaderProps {
   vendors: Vendor[];
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   vendors,
   darkMode,
   onToggleDarkMode,
+  onOpenSettings,
 }) => {
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
   const [notificationsGranted, setNotificationsGranted] = React.useState(hasNotificationPermission());
@@ -272,6 +274,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: session controls */}
           <div className="flex items-center gap-3 shrink-0">
+            <button onClick={onOpenSettings} title="Configuración personal" className="p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"><Settings className="w-4 h-4" /></button>
             <button onClick={onToggleDarkMode} title={darkMode ? 'Usar modo claro' : 'Usar modo oscuro'} className="p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors">
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>

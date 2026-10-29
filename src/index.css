@@ -94,3 +94,21 @@ html.theme-dark .hover\:bg-slate-200:hover {
 html.theme-dark .focus\:bg-white:focus {
   background-color: rgba(4, 22, 38, 0.9) !important;
 }
+
+/* Keep semantic blue and indigo labels readable on the navy canvas. */
+html.theme-dark .text-blue-600,
+html.theme-dark .text-blue-700,
+html.theme-dark .text-indigo-600,
+html.theme-dark .text-indigo-700 {
+  color: #8ed9ff !important;
+}
+
+html.theme-dark .bg-blue-50,
+html.theme-dark .bg-indigo-50 {
+  background-color: rgba(26, 98, 145, 0.30) !important;
+}
+
+html.theme-dark .border-blue-200,
+html.theme-dark .border-indigo-200 {
+  border-color: rgba(142, 217, 255, 0.45) !important;
+}

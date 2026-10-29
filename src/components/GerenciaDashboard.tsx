@@ -4,7 +4,6 @@ import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
 import { PresenceRecord } from '../services/presenceRepository';
 import { PresencePanel } from './PresencePanel';
-import { OperationsOverview } from './OperationsOverview';
 import { StructureSupervisor } from '../services/structureRepository';
 import {
   TrendingUp,
@@ -143,8 +142,6 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
       </div>
 
       {activeTab === 'structure' && <PresencePanel people={presence} title="Conexión de la estructura" />}
-
-      {activeTab === 'metrics' && <OperationsOverview metrics={metrics} title="Operación general" />}
 
       {/* KPI Cards Row (Gerencia Statistics) */}
       {activeTab === 'metrics' && <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
