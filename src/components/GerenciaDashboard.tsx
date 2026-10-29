@@ -32,6 +32,7 @@ interface GerenciaDashboardProps {
   presence: PresenceRecord[];
   supervisors: StructureSupervisor[];
   onOpenImportModal: () => void;
+  onOpenImportReview: () => void;
   onOpenInviteSeller: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
   onToggleSupervisorTeamStatus: (supervisorName: string, activate: boolean) => void;
@@ -50,6 +51,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   presence,
   supervisors,
   onOpenImportModal,
+  onOpenImportReview,
   onOpenInviteSeller,
   onToggleVendorStatus,
   onToggleSupervisorTeamStatus,
@@ -133,6 +135,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
         </div>
 
         <div className="flex gap-2">
+          <button onClick={onOpenImportReview} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg"><AlertTriangle className="w-4 h-4" /><span>Revisar importaciones</span></button>
           <button onClick={onOpenInviteSeller} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg"><Users className="w-4 h-4" /><span>Invitar integrante</span></button>
           <button onClick={onOpenImportModal} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors shrink-0"><Upload className="w-4 h-4" /><span>Importar Datos para Mi Estructura</span></button>
         </div>

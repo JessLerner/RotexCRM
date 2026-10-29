@@ -19,6 +19,7 @@ import { InviteSellerModal } from './components/InviteSellerModal';
 import { NoResponseModal } from './components/NoResponseModal';
 import { ManageVendorModal } from './components/ManageVendorModal';
 import { RetireSupervisorModal } from './components/RetireSupervisorModal';
+import { ImportReviewModal } from './components/ImportReviewModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
@@ -91,6 +92,7 @@ export default function App() {
   // Modals
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportReviewOpen, setIsImportReviewOpen] = useState(false);
   const [isInviteSellerOpen, setIsInviteSellerOpen] = useState(false);
   const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
   const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
@@ -759,6 +761,7 @@ export default function App() {
             presence={presence}
             supervisors={structureSupervisors}
             onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenImportReview={() => setIsImportReviewOpen(true)}
             onOpenInviteSeller={() => setIsInviteSellerOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
             onToggleSupervisorTeamStatus={handleToggleSupervisorTeamStatus}
@@ -783,6 +786,7 @@ export default function App() {
                 onWhatsAppClick={handleWhatsAppClick}
                 onCallClick={handleCallClick}
                 onOpenImportModal={() => setIsImportModalOpen(true)}
+                onOpenImportReview={() => setIsImportReviewOpen(true)}
                 onOpenSyncModal={() => setIsSyncModalOpen(true)}
               />
             )}
@@ -902,6 +906,13 @@ export default function App() {
         supervisors={structureSupervisors}
         onClose={() => setSupervisorToRetire(null)}
         onConfirm={handleRetireSupervisor}
+      />
+
+      <ImportReviewModal
+        isOpen={isImportReviewOpen}
+        onClose={() => setIsImportReviewOpen(false)}
+        brands={structureBrands}
+        onResolved={async () => { await fillRotationCupos(); await Promise.all([refreshOperationalData(), refreshRoster()]); }}
       />
 
       {isSyncModalOpen && (

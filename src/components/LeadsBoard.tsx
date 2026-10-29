@@ -13,6 +13,7 @@ interface LeadsBoardProps {
   onWhatsAppClick: (lead: Lead) => void;
   onCallClick: (lead: Lead) => void;
   onOpenImportModal: () => void;
+  onOpenImportReview: () => void;
   onOpenSyncModal: () => void;
 }
 
@@ -26,6 +27,7 @@ export const LeadsBoard: React.FC<LeadsBoardProps> = ({
   onWhatsAppClick,
   onCallClick,
   onOpenImportModal,
+  onOpenImportReview,
   onOpenSyncModal,
 }) => {
   const [search, setSearch] = useState('');
@@ -214,6 +216,13 @@ export const LeadsBoard: React.FC<LeadsBoardProps> = ({
 
         {/* Action Button */}
         <div className="shrink-0 flex items-center gap-2">
+          <button
+            onClick={onOpenImportReview}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors"
+          >
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>Revisar importaciones</span>
+          </button>
           <button
             onClick={onOpenImportModal}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs transition-colors"
