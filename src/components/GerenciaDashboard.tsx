@@ -31,6 +31,7 @@ interface GerenciaDashboardProps {
   onToggleSupervisorTeamStatus: (supervisorName: string, activate: boolean) => void;
   onOpenLeadDetail: (lead: Lead) => void;
   onManageVendor: (vendor: Vendor) => void;
+  onRetireVendor: (vendor: Vendor) => void;
 }
 
 export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
@@ -45,6 +46,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   onToggleSupervisorTeamStatus,
   onOpenLeadDetail,
   onManageVendor,
+  onRetireVendor,
 }) => {
 
   // Compute Gerencia Statistics
@@ -357,6 +359,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button onClick={() => onManageVendor(v)} className="mr-2 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"><Edit3 className="mr-1 inline h-3.5 w-3.5" />Editar</button>
+                        <button onClick={() => onRetireVendor(v)} className="mr-2 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100">Deshabilitar</button>
                         <button
                           onClick={() => onToggleVendorStatus(v.id, v.status)}
                           className={`px-3 py-1 text-xs font-semibold rounded border transition-colors ${

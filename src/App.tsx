@@ -733,6 +733,7 @@ export default function App() {
             onToggleSupervisorTeamStatus={handleToggleSupervisorTeamStatus}
             onOpenLeadDetail={(lead) => setSelectedLeadForDetail(lead)}
             onManageVendor={(vendor) => setVendorToManage(vendor)}
+            onRetireVendor={(vendor) => void handleRetireVendor(vendor)}
           />
         )}
 

@@ -144,10 +144,11 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
                       {onDeleteVendor && (
                         <button
                           onClick={() => onDeleteVendor(vendor.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors"
+                          className="inline-flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
                           title="Deshabilitar usuario (baja real)"
                         >
                           <Trash2 className="w-4 h-4" />
+                          Deshabilitar
                         </button>
                       )}
                     </div>

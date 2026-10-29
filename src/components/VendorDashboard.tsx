@@ -362,6 +362,14 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
                           <td className="py-3.5 px-4">
                             {isWon ? (
                               <span className="text-slate-400 font-mono">Dato ganado</span>
+                            ) : !isActive ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 text-slate-700 font-semibold bg-slate-100 px-2 py-0.5 rounded">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  Plazo detenido por franco
+                                </span>
+                                <div className="text-[10px] text-slate-400">El conteo se retoma al volver a estar activo.</div>
+                              </div>
                             ) : !hasContacted ? (
                               <div className="space-y-1">
                                 <LiveTimer deadline={lead.contactDeadline} type="30m" />
