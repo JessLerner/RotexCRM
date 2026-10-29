@@ -12,6 +12,8 @@ type OperationalLeadRow = {
 export type OperationalMetrics = {
   total: number; queued: number; review: number; assigned: number; in_progress: number;
   closed_won: number; closed_lost: number;
+  due_soon: number; overdue: number; rotated_today: number;
+  seller_breakdown: Array<{ profile_id: string; name: string; status: 'active' | 'paused' | 'inactive'; daily_target: number; capacity: number; active_leads: number; received_today: number; managed_today: number; recontacts_today: number; sales_total: number }>;
 };
 
 function toLead(row: OperationalLeadRow): Lead {
@@ -47,7 +49,7 @@ export async function loadOperationalLeads(): Promise<Lead[]> {
 export async function loadOperationalMetrics(): Promise<OperationalMetrics> {
   const { data, error } = await supabase.rpc('get_operational_metrics');
   if (error) throw error;
-  return { total: 0, queued: 0, review: 0, assigned: 0, in_progress: 0, closed_won: 0, closed_lost: 0, ...(data || {}) } as OperationalMetrics;
+  return { total: 0, queued: 0, review: 0, assigned: 0, in_progress: 0, closed_won: 0, closed_lost: 0, due_soon: 0, overdue: 0, rotated_today: 0, seller_breakdown: [], ...(data || {}) } as OperationalMetrics;
 }
 
 export async function fillRotationCupos(): Promise<number> {

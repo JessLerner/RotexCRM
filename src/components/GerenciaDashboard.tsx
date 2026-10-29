@@ -4,6 +4,7 @@ import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
 import { PresenceRecord } from '../services/presenceRepository';
 import { PresencePanel } from './PresencePanel';
+import { OperationsOverview } from './OperationsOverview';
 import {
   TrendingUp,
   BarChart3,
@@ -55,9 +56,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
 
   // Compute Gerencia Statistics
   const totalCargados = metrics.total;
-  const totalActivos = leads.filter(
-    (l) => l.status === 'pending_contact' || l.status === 'in_progress' || l.status === 'reopened'
-  ).length || metrics.assigned;
+  const totalActivos = metrics.assigned;
   const totalVentas = metrics.closed_won;
   const totalCerradosNoVenta = metrics.closed_lost;
   const totalCerrados = totalVentas + totalCerradosNoVenta;
@@ -135,6 +134,8 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
       </div>
 
       <PresencePanel people={presence} title="Conexión de la estructura" />
+
+      <OperationsOverview metrics={metrics} title="Operación general" />
 
       {/* KPI Cards Row (Gerencia Statistics) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
