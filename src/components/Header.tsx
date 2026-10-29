@@ -130,6 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Ranking del Mes
                 </button>
+                <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap shrink-0 transition-colors py-2 border-b-2 ${activeTab === 'history' ? 'border-blue-600 text-blue-600 font-semibold' : 'border-transparent hover:text-slate-900'}`}>Mi historial</button>
               </>
             )}
 

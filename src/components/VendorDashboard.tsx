@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lead, Vendor, ScheduledTask, ClosureOutcome } from '../types/crm';
 import { LiveTimer } from './LiveTimers';
 import { RankingsView } from './RankingsView';
+import { VendorAnonymizedHistory } from './VendorAnonymizedHistory';
 import {
   MessageSquare,
   Phone,
@@ -20,8 +21,8 @@ import {
 } from 'lucide-react';
 
 interface VendorDashboardProps {
-  activeTab: 'assigned' | 'ranking';
-  onTabChange: (tab: 'assigned' | 'ranking') => void;
+  activeTab: 'assigned' | 'ranking' | 'history';
+  onTabChange: (tab: 'assigned' | 'ranking' | 'history') => void;
   currentVendor: Vendor;
   assignedLeads: Lead[];
   allVendors: Vendor[];
@@ -201,10 +202,13 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
           <Award className="w-4 h-4" />
           <span>Ranking del Mes</span>
         </button>
+        <button onClick={() => onTabChange('history')} className={`pb-3 border-b-2 flex items-center gap-1.5 transition-colors ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}><Trophy className="w-4 h-4"/><span>Mi historial</span></button>
       </div>
 
       {activeTab === 'ranking' ? (
         <RankingsView vendors={allVendors} leads={allLeads} showSupervisorRanking={false} />
+      ) : activeTab === 'history' ? (
+        <VendorAnonymizedHistory />
       ) : (
         <div className="space-y-4">
           {/* Filter Bar */}

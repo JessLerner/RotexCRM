@@ -730,7 +730,7 @@ export default function App() {
         {/* ==================== 1. VENDEDORES VIEW ==================== */}
         {currentSession.role === 'vendedor' && activeVendor && (
           <VendorDashboard
-            activeTab={activeTab === 'ranking' ? 'ranking' : 'assigned'}
+            activeTab={activeTab === 'ranking' || activeTab === 'history' ? activeTab : 'assigned'}
             onTabChange={setActiveTab}
             currentVendor={activeVendor}
             assignedLeads={vendorAssignedLeads}
