@@ -13,3 +13,8 @@ export async function resolveImportReview(leadId: string, phone: string, brandId
   const { error } = await supabase.rpc('resolve_import_review', { p_lead_id: leadId, p_phone: phone, p_brand_id: brandId || null });
   if (error) throw error;
 }
+
+export async function discardImportReview(leadId: string) {
+  const { error } = await supabase.rpc('discard_import_review', { p_lead_id: leadId });
+  if (error) throw error;
+}
