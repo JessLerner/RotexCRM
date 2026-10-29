@@ -13,3 +13,84 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Rotex dark identity: navy canvas, cool panels and a restrained orange glow from the mark. */
+html.theme-dark {
+  color-scheme: dark;
+  background:
+    radial-gradient(900px 460px at 96% -10%, rgba(244, 90, 22, 0.16), transparent 58%),
+    radial-gradient(720px 420px at -8% 105%, rgba(25, 200, 232, 0.10), transparent 62%),
+    #071a2c;
+}
+
+html.theme-dark body {
+  min-height: 100vh;
+  color: #e5f1fb;
+  background: transparent;
+}
+
+html.theme-dark .bg-slate-50,
+html.theme-dark .bg-slate-50\/50,
+html.theme-dark .bg-slate-50\/70,
+html.theme-dark .bg-white,
+html.theme-dark .bg-white\/90 {
+  background-color: rgba(12, 35, 56, 0.92) !important;
+}
+
+html.theme-dark .bg-slate-100,
+html.theme-dark .bg-slate-100\/50,
+html.theme-dark .bg-slate-200 {
+  background-color: rgba(25, 55, 80, 0.78) !important;
+}
+
+html.theme-dark .bg-slate-950 {
+  background-color: #061423 !important;
+}
+
+html.theme-dark .border-slate-100,
+html.theme-dark .border-slate-200,
+html.theme-dark .border-slate-300 {
+  border-color: rgba(102, 171, 211, 0.22) !important;
+}
+
+html.theme-dark .text-slate-900,
+html.theme-dark .text-slate-800,
+html.theme-dark .text-slate-700 {
+  color: #e5f1fb !important;
+}
+
+html.theme-dark .text-slate-600,
+html.theme-dark .text-slate-500,
+html.theme-dark .text-slate-400 {
+  color: #a9c1d5 !important;
+}
+
+html.theme-dark input,
+html.theme-dark textarea,
+html.theme-dark select {
+  color: #e5f1fb;
+  background-color: rgba(4, 22, 38, 0.72) !important;
+  border-color: rgba(102, 171, 211, 0.35) !important;
+}
+
+html.theme-dark header {
+  background-color: rgba(7, 26, 44, 0.94) !important;
+  border-color: rgba(102, 171, 211, 0.22) !important;
+  box-shadow: 0 1px 20px rgba(0, 0, 0, 0.16);
+}
+
+html.theme-dark .shadow-xs,
+html.theme-dark .shadow-sm,
+html.theme-dark .shadow-xl {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.20) !important;
+}
+
+html.theme-dark .hover\:bg-slate-50:hover,
+html.theme-dark .hover\:bg-slate-100:hover,
+html.theme-dark .hover\:bg-slate-200:hover {
+  background-color: rgba(34, 76, 106, 0.82) !important;
+}
+
+html.theme-dark .focus\:bg-white:focus {
+  background-color: rgba(4, 22, 38, 0.9) !important;
+}

@@ -70,6 +70,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [passwordSetup, setPasswordSetup] = useState(() => /type=(invite|recovery)/.test(window.location.hash));
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('rotex-theme') === 'dark');
 
   const [activeTab, setActiveTab] = useState<string>('leads');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -98,6 +99,11 @@ export default function App() {
   const [structureBrands, setStructureBrands] = useState<StructureBrand[]>([]);
   const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
   const [memberBrandNames, setMemberBrandNames] = useState<Map<string, string[]>>(new Map());
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('theme-dark', darkMode);
+    localStorage.setItem('rotex-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   const refreshRoster = useCallback(async () => {
     if (!isSupabaseConfigured) return;
@@ -664,6 +670,8 @@ export default function App() {
         activeLeadsCount={activeLeadsCount}
         activeVendorsCount={activeVendorsCount}
         vendors={vendors}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((current) => !current)}
       />
 
       {/* Main View Port according to Role */}

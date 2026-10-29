@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Bell, ShieldAlert, Users, Building2, User, Crown, LogOut } from 'lucide-react';
+import { Volume2, VolumeX, Bell, ShieldAlert, Users, Building2, User, Crown, LogOut, Moon, Sun } from 'lucide-react';
 import { Vendor, UserSession, UserRole } from '../types/crm';
 import { isSoundEnabled, setSoundEnabled } from '../utils/soundAlerts';
 import { requestNotificationPermission, hasNotificationPermission, sendLeadPushNotification } from '../utils/pushNotifications';
@@ -12,6 +12,8 @@ interface HeaderProps {
   activeLeadsCount: number;
   activeVendorsCount: number;
   vendors: Vendor[];
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeLeadsCount,
   activeVendorsCount,
   vendors,
+  darkMode,
+  onToggleDarkMode,
 }) => {
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
   const [notificationsGranted, setNotificationsGranted] = React.useState(hasNotificationPermission());
@@ -248,6 +252,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: session controls */}
           <div className="flex items-center gap-3 shrink-0">
+            <button onClick={onToggleDarkMode} title={darkMode ? 'Usar modo claro' : 'Usar modo oscuro'} className="p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors">
+              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button onClick={() => void supabase.auth.signOut()} title="Cerrar sesión" className="p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"><LogOut className="w-4 h-4" /></button>
 
             {/* Audio chime toggle */}
