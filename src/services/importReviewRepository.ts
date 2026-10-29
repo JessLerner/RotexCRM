@@ -18,3 +18,8 @@ export async function discardImportReview(leadId: string) {
   const { error } = await supabase.rpc('discard_import_review', { p_lead_id: leadId });
   if (error) throw error;
 }
+
+export async function discardImportReviews(leadIds: string[]) {
+  const { error } = await supabase.rpc('discard_import_reviews', { p_lead_ids: leadIds });
+  if (error) throw error;
+}
