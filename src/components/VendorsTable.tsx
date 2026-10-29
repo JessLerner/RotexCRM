@@ -6,6 +6,7 @@ interface VendorsTableProps {
   vendors: Vendor[];
   onToggleStatus: (vendorId: string, currentStatus: VendorStatus) => void;
   onUpdateMaxCapacity: (vendorId: string, newMax: number) => void;
+  onManageVendor?: (vendor: Vendor) => void;
   onDeleteVendor?: (vendorId: string) => void;
   onOpenSyncModal: () => void;
 }
@@ -14,6 +15,7 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
   vendors,
   onToggleStatus,
   onUpdateMaxCapacity,
+  onManageVendor,
   onDeleteVendor,
   onOpenSyncModal,
 }) => {
@@ -153,6 +155,11 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
                   {/* Acciones */}
                   <td className="py-3.5 px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {onManageVendor && (
+                        <button onClick={() => onManageVendor(vendor)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded transition-colors" title="Editar supervisor, marcas y cupos">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                       {onDeleteVendor && (
                         <button
                           onClick={() => onDeleteVendor(vendor.id)}

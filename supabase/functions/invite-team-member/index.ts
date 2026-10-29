@@ -13,7 +13,7 @@ Deno.serve(async (request) => {
     const callerClient = createClient(url, anon, { global: { headers: { Authorization: authorization } } });
     const { data: { user }, error: authError } = await callerClient.auth.getUser();
     if (authError || !user) throw new Error('Sesión inválida');
-    const { name, email, capacity = 15 } = await request.json();
+    const { name, email, capacity = 15, dailyTarget = 5, supervisorId: requestedSupervisorId, brandIds: requestedBrandIds } = await request.json();
     if (!name?.trim() || !email?.trim()) throw new Error('Nombre y correo son obligatorios');
 
     const admin = createClient(url, serviceKey);
@@ -27,10 +27,18 @@ Deno.serve(async (request) => {
       const memberIds = (members || []).map(({ profile_id }) => profile_id);
       const { data: supervisors } = await admin.from('profiles').select('id').in('id', memberIds).eq('role', 'supervisor').eq('status', 'active').limit(1);
       if (!supervisors?.[0]) throw new Error('El equipo no tiene un supervisor activo para asignar al asesor');
-      supervisorId = supervisors[0].id;
+      supervisorId = requestedSupervisorId || supervisors[0].id;
+      if (!supervisors?.some((supervisor) => supervisor.id === supervisorId)) throw new Error('El supervisor elegido debe pertenecer al mismo equipo y estar activo');
     }
     const { data: inheritedBrands } = await admin.from('seller_brands').select('brand_id').eq('profile_id', supervisorId);
     if (!inheritedBrands?.length) throw new Error('Tu equipo todavía no tiene una marca asignada');
+    let brandIds = inheritedBrands.map(({ brand_id }) => brand_id);
+    if (requestedBrandIds !== undefined && caller.role !== 'supervisor') {
+      if (!Array.isArray(requestedBrandIds) || requestedBrandIds.length === 0) throw new Error('Seleccioná al menos una marca');
+      const { data: requestedBrands } = await admin.from('brands').select('id').in('id', requestedBrandIds).eq('active', true);
+      if ((requestedBrands || []).length !== requestedBrandIds.length) throw new Error('Una de las marcas seleccionadas no está disponible');
+      brandIds = requestedBrands!.map(({ id }) => id);
+    }
 
     const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
@@ -41,9 +49,9 @@ Deno.serve(async (request) => {
     const sellerId = invited.user.id;
     const { error: profileError } = await admin.from('profiles').upsert({ id: sellerId, display_name: name.trim(), role: 'vendedor', status: 'active' });
     if (profileError) throw profileError;
-    const { error: teamError } = await admin.from('team_memberships').insert({ profile_id: sellerId, team_id: membership.team_id, reports_to: supervisorId, status: 'active', capacity: Math.max(1, Math.min(Number(capacity) || 15, 100)) });
+    const { error: teamError } = await admin.from('team_memberships').insert({ profile_id: sellerId, team_id: membership.team_id, reports_to: supervisorId, status: 'active', capacity: Math.max(1, Math.min(Number(capacity) || 15, 100)), daily_target: Math.max(1, Math.min(Number(dailyTarget) || 5, 10)) });
     if (teamError) throw teamError;
-    const { error: brandError } = await admin.from('seller_brands').insert(inheritedBrands.map(({ brand_id }) => ({ profile_id: sellerId, brand_id })));
+    const { error: brandError } = await admin.from('seller_brands').insert(brandIds.map((brand_id) => ({ profile_id: sellerId, brand_id })));
     if (brandError) throw brandError;
     return Response.json({ ok: true }, { headers: corsHeaders });
   } catch (error) {

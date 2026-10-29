@@ -83,11 +83,10 @@ Reglas nuevas acordadas para ese circuito:
 
 ### 2. Gestión de personas y estructura
 
-- Administración y Gerencia: alta, baja, reactivación y edición integral de usuarios.
-- Asignar/cambiar supervisor, equipo y marca desde Administración o Gerencia.
-- Eliminar usuarios con una regla de resguardo de sus leads y trazabilidad.
-- Supervisor: conservar un único botón de alta y no pedir WhatsApp; pedir correo para invitar.
-- Confirmar visualmente que un asesor desactivado pasa a la pestaña correspondiente y no reaparece activo al recargar.
+- Implementado en código, pendiente de aplicar/publicar: Administración y Gerencia pueden editar supervisor, marcas, capacidad y cupo diario; además pueden pausar, reactivar o retirar asesores sin borrar su historial.
+- Un retiro libera los leads activos a la cola, conserva las asignaciones y actividades previas, y deja auditoría.
+- Supervisor: conserva un único botón de alta y no pide WhatsApp; utiliza correo para invitar.
+- Pendiente de una fase posterior: creación/edición de supervisores y equipos completos, no solo de vendedores.
 
 ### 3. Tableros operativos
 
@@ -126,6 +125,7 @@ La aplicación real debe verificarse en Supabase; la confirmación de `Success` 
 | `20261028144000_limit_import_queue_read.sql` | Límite de cola (generó ambigüedad) | No es solución final |
 | `20261028145000_fix_import_queue_rpc.sql` | Elimina ambigüedad y limita a 200 | **Pendiente crítico** |
 | `20261028150000_operational_lead_lifecycle.sql` | Asignación, gestión, rotación, cierres, horarios y métricas reales | **Pendiente de aplicar antes del nuevo despliegue** |
+| `20261028151000_structure_management.sql` | Edición, pausas y retiro trazable de asesores | **Pendiente de aplicar antes del nuevo despliegue** |
 
 ## Orden recomendado
 

@@ -16,6 +16,7 @@ import {
   Building2,
   Flame,
   ArrowUpRight,
+  Edit3,
 } from 'lucide-react';
 
 interface GerenciaDashboardProps {
@@ -29,6 +30,7 @@ interface GerenciaDashboardProps {
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
   onToggleSupervisorTeamStatus: (supervisorName: string, activate: boolean) => void;
   onOpenLeadDetail: (lead: Lead) => void;
+  onManageVendor: (vendor: Vendor) => void;
 }
 
 export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
@@ -42,6 +44,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   onToggleVendorStatus,
   onToggleSupervisorTeamStatus,
   onOpenLeadDetail,
+  onManageVendor,
 }) => {
 
   // Compute Gerencia Statistics
@@ -353,6 +356,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
                         {v.totalConversions || 0}
                       </td>
                       <td className="py-3 px-4 text-right">
+                        <button onClick={() => onManageVendor(v)} className="mr-2 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"><Edit3 className="mr-1 inline h-3.5 w-3.5" />Editar</button>
                         <button
                           onClick={() => onToggleVendorStatus(v.id, v.status)}
                           className={`px-3 py-1 text-xs font-semibold rounded border transition-colors ${

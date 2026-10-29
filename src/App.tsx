@@ -17,9 +17,11 @@ import { RankingsView } from './components/RankingsView';
 import { AuthScreen } from './components/AuthScreen';
 import { InviteSellerModal } from './components/InviteSellerModal';
 import { NoResponseModal } from './components/NoResponseModal';
+import { ManageVendorModal } from './components/ManageVendorModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
+import { loadStructureOptions, MemberStructure, retireMember, setMemberStatus, StructureBrand, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
 import {
   closeMyLead,
   fillRotationCupos,
@@ -91,6 +93,11 @@ export default function App() {
   const [selectedLeadForTask, setSelectedLeadForTask] = useState<Lead | null>(null);
   const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
   const [selectedLeadForNoResponse, setSelectedLeadForNoResponse] = useState<Lead | null>(null);
+  const [vendorToManage, setVendorToManage] = useState<Vendor | null>(null);
+  const [structureSupervisors, setStructureSupervisors] = useState<StructureSupervisor[]>([]);
+  const [structureBrands, setStructureBrands] = useState<StructureBrand[]>([]);
+  const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
+  const [memberBrandNames, setMemberBrandNames] = useState<Map<string, string[]>>(new Map());
 
   const refreshRoster = useCallback(async () => {
     if (!isSupabaseConfigured) return;
@@ -102,6 +109,14 @@ export default function App() {
     const [operationalLeads, metrics] = await Promise.all([loadOperationalLeads(), loadOperationalMetrics()]);
     setLeads(operationalLeads);
     setOperationalMetrics(metrics);
+  }, []);
+  const refreshStructureOptions = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const options = await loadStructureOptions();
+    setStructureSupervisors(options.supervisors);
+    setStructureBrands(options.brands);
+    setMemberStructures(options.memberships);
+    setMemberBrandNames(options.brandNames);
   }, []);
 
   useEffect(() => {
@@ -190,6 +205,11 @@ export default function App() {
     if (!currentSession.id || !isSupabaseConfigured) return;
     refreshRoster().catch((error) => console.error('No se pudo cargar la nómina:', error));
   }, [currentSession.id, refreshRoster]);
+
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured) return;
+    refreshStructureOptions().catch((error) => console.error('No se pudieron cargar opciones de estructura:', error));
+  }, [currentSession.id, refreshStructureOptions]);
 
   useEffect(() => {
     if (!currentSession.id || !isSupabaseConfigured) return;
@@ -390,16 +410,15 @@ export default function App() {
     else nextStatus = 'active';
 
     if (isSupabaseConfigured) {
-      const { error } = await supabase
-        .from('team_memberships')
-        .update({ status: nextStatus })
-        .eq('profile_id', vendorId)
-        .is('left_at', null);
-      if (error) {
+      try {
+        const result = await setMemberStatus(vendorId, nextStatus);
+        if (nextStatus !== 'active') await fillRotationCupos();
+        await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
+        if (result.released_leads > 0) window.alert(`Se liberaron ${result.released_leads} dato(s) para rotación.`);
+      } catch (error: any) {
         window.alert(`No se pudo actualizar el estado: ${error.message}`);
         return;
       }
-      await refreshRoster();
     } else {
       const updated = vendors.map((v) => (v.id === vendorId ? { ...v, status: nextStatus } : v));
       saveStoredVendors(updated);
@@ -415,6 +434,31 @@ export default function App() {
     );
   };
 
+  const getInitialStructure = (vendor: Vendor): MemberStructure | null => {
+    const membership = memberStructures.get(vendor.id);
+    if (!membership) return null;
+    const names = memberBrandNames.get(vendor.id) || [];
+    return {
+      supervisorId: membership.reports_to || '',
+      brandIds: structureBrands.filter((brand) => names.includes(brand.name)).map((brand) => brand.id),
+      capacity: membership.capacity || vendor.maxAssignments || 15,
+      dailyTarget: membership.daily_target || 5,
+    };
+  };
+  const handleSaveVendorStructure = async (vendorId: string, structure: MemberStructure) => {
+    await updateMemberStructure(vendorId, structure);
+    await fillRotationCupos();
+    await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
+  };
+  const handleRetireVendor = async (vendor: Vendor) => {
+    if (!window.confirm(`¿Retirar a ${vendor.name}? Se conserva todo su historial y sus datos activos volverán a la cola.`)) return;
+    try {
+      await retireMember(vendor.id, 'Retiro desde control de estructura');
+      await fillRotationCupos();
+      await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
+    } catch (error: any) { window.alert(`No se pudo retirar al asesor: ${error.message}`); }
+  };
+
   // Toggle all vendors under a supervisor
   const handleToggleSupervisorTeamStatus = async (supervisorName: string, activate: boolean) => {
     const nextStatus: VendorStatus = activate ? 'active' : 'paused';
@@ -422,16 +466,14 @@ export default function App() {
       .filter((v) => v.supervisor.trim().toLowerCase() === supervisorName.trim().toLowerCase())
       .map((v) => v.id);
     if (isSupabaseConfigured) {
-      const { error } = await supabase
-        .from('team_memberships')
-        .update({ status: nextStatus })
-        .in('profile_id', teamVendorIds)
-        .is('left_at', null);
-      if (error) {
+      try {
+        await Promise.all(teamVendorIds.map((vendorId) => setMemberStatus(vendorId, nextStatus)));
+        if (!activate) await fillRotationCupos();
+        await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
+      } catch (error: any) {
         window.alert(`No se pudo actualizar el equipo: ${error.message}`);
         return;
       }
-      await refreshRoster();
     } else {
       const updated = vendors.map((v) => teamVendorIds.includes(v.id) ? { ...v, status: nextStatus } : v);
       saveStoredVendors(updated);
@@ -450,23 +492,29 @@ export default function App() {
     name: string;
     email: string;
     maxAssignments: number;
+    supervisorId?: string;
+    brandIds?: string[];
+    dailyTarget?: number;
   }) => {
     const { data, error } = await supabase.functions.invoke('invite-team-member', { body: newVendorData });
     if (error || data?.error) throw new Error(data?.error || error.message);
+    await fillRotationCupos();
     const roster = await loadRoster();
     setVendors(roster);
+    await Promise.all([refreshOperationalData(), refreshStructureOptions()]);
     sendLeadPushNotification('Invitación enviada', `${newVendorData.name} recibirá un correo para crear su contraseña.`, 'assignment');
   };
 
   // Update vendor capacity
   const handleUpdateVendorMaxCapacity = async (vendorId: string, newMax: number) => {
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('team_memberships').update({ capacity: newMax }).eq('profile_id', vendorId).is('left_at', null);
-      if (error) {
-        window.alert(`No se pudo actualizar la capacidad: ${error.message}`);
-        return;
-      }
-      await refreshRoster();
+      const vendor = vendors.find((item) => item.id === vendorId);
+      const current = vendor ? getInitialStructure(vendor) : null;
+      if (!current) { window.alert('No se pudo obtener la estructura actual del asesor.'); return; }
+      try {
+        await updateMemberStructure(vendorId, { ...current, capacity: newMax });
+        await Promise.all([refreshRoster(), refreshStructureOptions()]);
+      } catch (error: any) { window.alert(`No se pudo actualizar la capacidad: ${error.message}`); }
       return;
     }
     const updated = vendors.map((v) => (v.id === vendorId ? { ...v, maxAssignments: newMax } : v));
@@ -672,6 +720,7 @@ export default function App() {
             onToggleVendorStatus={handleToggleVendorStatus}
             onToggleSupervisorTeamStatus={handleToggleSupervisorTeamStatus}
             onOpenLeadDetail={(lead) => setSelectedLeadForDetail(lead)}
+            onManageVendor={(vendor) => setVendorToManage(vendor)}
           />
         )}
 
@@ -707,12 +756,15 @@ export default function App() {
                   setSearchQuery={setVendorSearchQuery}
                   onOpenSyncModal={() => setIsSyncModalOpen(true)}
                   onToggleStatus={handleToggleVendorStatus}
+                  onAddManualVendor={() => setIsInviteSellerOpen(true)}
                 />
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
                   <VendorsTable
                     vendors={vendors}
                     onToggleStatus={handleToggleVendorStatus}
                     onUpdateMaxCapacity={handleUpdateVendorMaxCapacity}
+                    onManageVendor={(vendor) => setVendorToManage(vendor)}
+                    onDeleteVendor={(vendorId) => { const vendor = vendors.find((item) => item.id === vendorId); if (vendor) void handleRetireVendor(vendor); }}
                     onOpenSyncModal={() => setIsSyncModalOpen(true)}
                   />
                 </div>
@@ -790,6 +842,15 @@ export default function App() {
         />
       )}
 
+      <ManageVendorModal
+        vendor={vendorToManage}
+        supervisors={structureSupervisors}
+        brands={structureBrands}
+        initial={vendorToManage ? getInitialStructure(vendorToManage) : null}
+        onClose={() => setVendorToManage(null)}
+        onSave={handleSaveVendorStructure}
+      />
+
       {isSyncModalOpen && (
         <GoogleSheetSyncModal
           isOpen={isSyncModalOpen}
@@ -818,7 +879,7 @@ export default function App() {
           }}
         />
       )}
-      <InviteSellerModal isOpen={isInviteSellerOpen} onClose={() => setIsInviteSellerOpen(false)} onInvite={handleAddNewVendorToTeam} />
+      <InviteSellerModal isOpen={isInviteSellerOpen} onClose={() => setIsInviteSellerOpen(false)} onInvite={handleAddNewVendorToTeam} supervisors={structureSupervisors} brands={structureBrands} canChooseStructure={currentSession.role === 'administracion' || currentSession.role === 'gerencia'} />
     </div>
   );
 }
