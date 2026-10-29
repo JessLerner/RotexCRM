@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { VendorsBar } from './components/VendorsBar';
 import { VendorsTable } from './components/VendorsTable';
 import { LeadsBoard } from './components/LeadsBoard';
+import { LeadPortfolio } from './components/LeadPortfolio';
 import { RotationLogsView } from './components/RotationLogsView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { TaskModal } from './components/TaskModal';
@@ -77,7 +78,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('leads');
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics>({ total: 0, queued: 0, review: 0, assigned: 0, in_progress: 0, closed_won: 0, closed_lost: 0 });
+  const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics>({ total: 0, queued: 0, review: 0, assigned: 0, in_progress: 0, closed_won: 0, closed_lost: 0, due_soon: 0, overdue: 0, rotated_today: 0, seller_breakdown: [] });
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [rotationLogs, setRotationLogs] = useState<RotationLog[]>([]);
   const [sheetConfig, setSheetConfig] = useState<GoogleSheetConfig>(getStoredSheetConfig());
@@ -751,7 +752,10 @@ export default function App() {
         )}
 
         {/* ==================== 3. GERENCIA VIEW ==================== */}
-        {currentSession.role === 'gerencia' && (
+        {currentSession.role === 'gerencia' && activeTab === 'portfolio' && (
+          <LeadPortfolio onImport={() => setIsImportModalOpen(true)} onReview={() => setIsImportReviewOpen(true)} />
+        )}
+        {currentSession.role === 'gerencia' && activeTab !== 'portfolio' && (
           <GerenciaDashboard
             activeTab={activeTab === 'structure' || activeTab === 'rankings' ? activeTab : 'metrics'}
             onTabChange={setActiveTab}
@@ -775,21 +779,7 @@ export default function App() {
         {/* ==================== 4. ADMINISTRACIÓN VIEW ==================== */}
         {currentSession.role === 'administracion' && (
           <>
-            {activeTab === 'leads' && (
-              <LeadsBoard
-                leads={leads}
-                vendors={vendors}
-                currentVendorFilter={currentVendorFilter}
-                onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
-                onOpenTaskModal={(lead) => setSelectedLeadForTask(lead)}
-                onOpenClosureModal={(lead) => setSelectedLeadForClosure(lead)}
-                onWhatsAppClick={handleWhatsAppClick}
-                onCallClick={handleCallClick}
-                onOpenImportModal={() => setIsImportModalOpen(true)}
-                onOpenImportReview={() => setIsImportReviewOpen(true)}
-                onOpenSyncModal={() => setIsSyncModalOpen(true)}
-              />
-            )}
+            {activeTab === 'leads' && <LeadPortfolio onImport={() => setIsImportModalOpen(true)} onReview={() => setIsImportReviewOpen(true)} />}
 
             {activeTab === 'vendors' && (
               <div className="space-y-4">

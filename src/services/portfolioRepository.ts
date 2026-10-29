@@ -1,0 +1,3 @@
+import { supabase } from '../lib/supabase';
+export type PortfolioItem = { id:string; fox_lead_id:string; full_name:string; phone:string; brand:string; model_interest:string|null; state:string; created_at:string; closed_at:string|null; closure_outcome:string|null; closure_notes:string|null; seller_name:string|null; rotations:number };
+export async function loadPortfolio(filters:{search:string;state:string;brand:string;page:number}) { const {data,error}=await supabase.rpc('get_lead_portfolio',{p_search:filters.search||null,p_state:filters.state,p_brand:filters.brand,p_page:filters.page,p_page_size:50}); if(error) throw error; return (data||{total:0,items:[]}) as {total:number;items:PortfolioItem[]}; }

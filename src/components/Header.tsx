@@ -191,6 +191,16 @@ export const Header: React.FC<HeaderProps> = ({
                   Control de Estructura
                 </button>
                 <button
+                  onClick={() => setActiveTab('portfolio')}
+                  className={`whitespace-nowrap shrink-0 transition-colors py-2 border-b-2 ${
+                    activeTab === 'portfolio'
+                      ? 'border-indigo-600 text-indigo-600 font-semibold'
+                      : 'border-transparent hover:text-slate-900'
+                  }`}
+                >
+                  Cartera
+                </button>
+                <button
                   onClick={() => setActiveTab('rankings')}
                   className={`whitespace-nowrap shrink-0 transition-colors py-2 border-b-2 ${
                     activeTab === 'rankings'
