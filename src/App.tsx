@@ -410,10 +410,7 @@ export default function App() {
 
   // Toggle vendor activity status (Activo, Pausa, Inactivo)
   const handleToggleVendorStatus = async (vendorId: string, currentStatus: VendorStatus) => {
-    let nextStatus: VendorStatus = 'active';
-    if (currentStatus === 'active') nextStatus = 'paused';
-    else if (currentStatus === 'paused') nextStatus = 'inactive';
-    else nextStatus = 'active';
+    const nextStatus: VendorStatus = currentStatus === 'active' ? 'paused' : 'active';
 
     if (isSupabaseConfigured) {
       try {
@@ -438,6 +435,12 @@ export default function App() {
       }`,
       'info'
     );
+  };
+
+  const handleSetVendorAvailability = async (vendorId: string, nextStatus: 'active' | 'paused') => {
+    const current = vendors.find((vendor) => vendor.id === vendorId)?.status;
+    if (current === nextStatus) return;
+    await handleToggleVendorStatus(vendorId, nextStatus === 'active' ? 'paused' : 'active');
   };
 
   const getInitialStructure = (vendor: Vendor): MemberStructure | null => {
@@ -772,6 +775,7 @@ export default function App() {
                     vendors={vendors}
                     onToggleStatus={handleToggleVendorStatus}
                     onUpdateMaxCapacity={handleUpdateVendorMaxCapacity}
+                    onSetAvailability={handleSetVendorAvailability}
                     onManageVendor={(vendor) => setVendorToManage(vendor)}
                     onDeleteVendor={(vendorId) => { const vendor = vendors.find((item) => item.id === vendorId); if (vendor) void handleRetireVendor(vendor); }}
                     onOpenSyncModal={() => setIsSyncModalOpen(true)}

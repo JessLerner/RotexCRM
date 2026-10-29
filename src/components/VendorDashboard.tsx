@@ -261,7 +261,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
               <p className="text-xs text-slate-500 mb-5 leading-relaxed">
                 {canReceiveLeads
                   ? 'No tenés datos asignados en este momento. Hacé clic en el botón para solicitar un nuevo dato o esperá la próxima rotación automática.'
-                  : 'Tu perfil de prueba está activo. La bandeja se llenará cuando tu supervisora te asigne una marca y se importen datos de Fox CRM.'}
+                  : 'Tu perfil está activo. La bandeja se llenará cuando tu supervisora complete tu equipo y marca.'}
               </p>
               <button
                 onClick={() => onRequestLead(currentVendor)}
@@ -370,7 +370,7 @@ export const VendorDashboard: React.FC<VendorDashboardProps> = ({
                             ) : lead.currentTask ? (
                               <div className="space-y-1">
                                 <LiveTimer deadline={lead.currentTask.dueAt} type="5h" isCompleted={lead.currentTask.completed} />
-                                <div className="text-[10px] text-slate-400">Cumplir tarea en ≤ 5h</div>
+                                <div className="text-[10px] text-slate-400">Recontactar: {new Date(lead.currentTask.dueAt).toLocaleString('es-AR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                               </div>
                             ) : (
                               <div className="text-amber-700 text-xs font-semibold flex items-center gap-1">

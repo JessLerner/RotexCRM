@@ -63,15 +63,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-              <span>ID Fox: <strong className="text-slate-700 font-mono">{lead.foxLeadId || lead.id}</strong></span>
-              <span>·</span>
               <span>Interés: <strong>{lead.modelInterest || 'Vehículo ' + lead.brand}</strong></span>
-              {lead.foxBranch && (
-                <>
-                  <span>·</span>
-                  <span>Sucursal: {lead.foxBranch}</span>
-                </>
-              )}
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded">
@@ -172,39 +164,6 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <div className="text-xs text-slate-500 font-medium mb-1">3. Cierre Global (10 Días)</div>
               <LiveTimer deadline={lead.globalClosureDeadline} type="10d" isCompleted={lead.status === 'closed_won'} />
             </div>
-          </div>
-
-          {/* Fox CRM Origin Section */}
-          <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Historial de Origen Fox CRM
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div>
-                <span className="text-slate-400">Cierre Previo en Fox:</span>
-                <div className="font-medium text-slate-800">{lead.foxOriginalCloseDate || 'Sin fecha registrada'}</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Motivo Previo Fox:</span>
-                <div className="font-medium text-slate-800">{lead.foxOriginalCloseReason || 'Sin motivo previo'}</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Sucursal:</span>
-                <div className="font-medium text-slate-800">{lead.foxBranch || 'Casa Central'}</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Importado en Rotex:</span>
-                <div className="font-medium text-slate-800">
-                  {new Date(lead.importedAt).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-            {lead.foxNotes && (
-              <div className="mt-2 text-xs text-slate-600 bg-white p-2 rounded border border-slate-200">
-                <span className="font-semibold text-slate-700">Notas originales de Fox CRM: </span>
-                {lead.foxNotes}
-              </div>
-            )}
           </div>
 
           {/* Comments & Audit Trail ("Todos los comentarios que escriban los vendedores pueden ser visto por otros vendedores") */}

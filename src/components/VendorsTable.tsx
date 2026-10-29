@@ -5,6 +5,7 @@ import { CheckCircle2, PauseCircle, XCircle, Shield, Award, Edit3, Trash2 } from
 interface VendorsTableProps {
   vendors: Vendor[];
   onToggleStatus: (vendorId: string, currentStatus: VendorStatus) => void;
+  onSetAvailability?: (vendorId: string, status: 'active' | 'paused') => void;
   onUpdateMaxCapacity: (vendorId: string, newMax: number) => void;
   onManageVendor?: (vendor: Vendor) => void;
   onDeleteVendor?: (vendorId: string) => void;
@@ -14,6 +15,7 @@ interface VendorsTableProps {
 export const VendorsTable: React.FC<VendorsTableProps> = ({
   vendors,
   onToggleStatus,
+  onSetAvailability,
   onUpdateMaxCapacity,
   onManageVendor,
   onDeleteVendor,
@@ -87,28 +89,7 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
 
                   {/* Estado de Actividad */}
                   <td className="py-3.5 px-4">
-                    <button
-                      onClick={() => onToggleStatus(vendor.id, vendor.status)}
-                      title="Clic para alternar estado (Activo -> Pausa -> Inactivo)"
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
-                        vendor.status === 'active'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                          : vendor.status === 'paused'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
-                      }`}
-                    >
-                      {vendor.status === 'active' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                      {vendor.status === 'paused' && <PauseCircle className="w-3.5 h-3.5 text-amber-600" />}
-                      {vendor.status === 'inactive' && <XCircle className="w-3.5 h-3.5 text-slate-400" />}
-                      <span>
-                        {vendor.status === 'active'
-                          ? 'Activo'
-                          : vendor.status === 'paused'
-                          ? 'En Pausa'
-                          : 'Inactivo'}
-                      </span>
-                    </button>
+                    {onSetAvailability ? <select value={vendor.status === 'active' ? 'active' : 'paused'} onChange={(e) => onSetAvailability(vendor.id, e.target.value as 'active' | 'paused')} className={`rounded border px-2 py-1 text-xs font-semibold ${vendor.status === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}><option value="active">Activo</option><option value="paused">Inactivo / Franco</option></select> : <button onClick={() => onToggleStatus(vendor.id, vendor.status)} className="rounded border px-2 py-1 text-xs">{vendor.status === 'active' ? 'Activo' : 'Inactivo / Franco'}</button>}
                   </td>
 
                   {/* Volumen Actual */}
@@ -164,7 +145,7 @@ export const VendorsTable: React.FC<VendorsTableProps> = ({
                         <button
                           onClick={() => onDeleteVendor(vendor.id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors"
-                          title="Eliminar asesor"
+                          title="Deshabilitar usuario (baja real)"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
