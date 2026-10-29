@@ -21,6 +21,7 @@ import { ManageVendorModal } from './components/ManageVendorModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
+import { endPresence, loadPresenceReport, PresenceRecord, touchPresence } from './services/presenceRepository';
 import { loadStructureOptions, MemberStructure, retireMember, setMemberStatus, StructureBrand, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
 import {
   closeMyLead,
@@ -99,6 +100,7 @@ export default function App() {
   const [structureBrands, setStructureBrands] = useState<StructureBrand[]>([]);
   const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
   const [memberBrandNames, setMemberBrandNames] = useState<Map<string, string[]>>(new Map());
+  const [presence, setPresence] = useState<PresenceRecord[]>([]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('theme-dark', darkMode);
@@ -243,6 +245,24 @@ export default function App() {
     }, 60_000);
     return () => window.clearInterval(timer);
   }, [currentSession.id, refreshOperationalData, refreshRoster]);
+
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured) return;
+    const beat = () => touchPresence().catch((error) => console.error('No se pudo registrar presencia:', error));
+    beat();
+    const timer = window.setInterval(beat, 60_000);
+    const onPageHide = () => { void endPresence(); };
+    window.addEventListener('pagehide', onPageHide);
+    return () => { window.clearInterval(timer); window.removeEventListener('pagehide', onPageHide); void endPresence(); };
+  }, [currentSession.id]);
+
+  useEffect(() => {
+    if (!currentSession.id || !isSupabaseConfigured || !['supervisor', 'gerencia', 'administracion'].includes(currentSession.role)) return;
+    const refresh = () => loadPresenceReport().then(setPresence).catch((error) => console.error('No se pudo cargar presencia:', error));
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    return () => window.clearInterval(timer);
+  }, [currentSession.id, currentSession.role]);
 
   // WhatsApp click handler
   const handleWhatsAppClick = (lead: Lead) => {
@@ -709,6 +729,7 @@ export default function App() {
             vendors={vendors}
             allLeads={leads}
             metrics={operationalMetrics}
+            presence={presence}
             onOpenDetail={(lead) => setSelectedLeadForDetail(lead)}
             onOpenImportModal={() => setIsImportModalOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
@@ -727,6 +748,7 @@ export default function App() {
             vendors={vendors}
             leads={leads}
             metrics={operationalMetrics}
+            presence={presence}
             onOpenImportModal={() => setIsImportModalOpen(true)}
             onOpenInviteSeller={() => setIsInviteSellerOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}

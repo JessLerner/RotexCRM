@@ -3,6 +3,7 @@ import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { LiveTimer } from './LiveTimers';
 import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
+import { PresenceRecord } from '../services/presenceRepository';
 import {
   Users,
   Clock,
@@ -28,6 +29,7 @@ interface SupervisorDashboardProps {
   vendors: Vendor[];
   allLeads: Lead[];
   metrics: OperationalMetrics;
+  presence: PresenceRecord[];
   onOpenDetail: (lead: Lead) => void;
   onOpenImportModal: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
@@ -44,6 +46,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   vendors,
   allLeads,
   metrics,
+  presence,
   onOpenDetail,
   onOpenImportModal,
   onToggleVendorStatus,
@@ -90,6 +93,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   const urgentCount = sortedTeamLeads.filter((l) => getRemainingMs(l) < 5 * 60 * 1000).length;
   const activeSellersCount = myVendors.filter((v) => v.status === 'active').length;
   const teamSalesCount = myVendors.reduce((acc, v) => acc + (v.totalConversions || 0), 0);
+  const connectedTeamCount = presence.filter((person) => person.connected && myVendorIds.has(person.profile_id)).length;
 
   const handleCreateVendor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +137,8 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
             <span className="font-mono tabular-nums text-blue-700 font-medium">{metrics.queued} disponibles para asignar</span>
             <span>·</span>
             <span className="text-emerald-700 font-bold">{teamSalesCount} ventas del equipo</span>
+            <span>·</span>
+            <span className="text-cyan-700 font-semibold">{connectedTeamCount} conectados ahora</span>
           </div>
         </div>
 

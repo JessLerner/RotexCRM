@@ -2,6 +2,7 @@ import React from 'react';
 import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
+import { PresenceRecord } from '../services/presenceRepository';
 import {
   TrendingUp,
   BarChart3,
@@ -25,6 +26,7 @@ interface GerenciaDashboardProps {
   vendors: Vendor[];
   leads: Lead[];
   metrics: OperationalMetrics;
+  presence: PresenceRecord[];
   onOpenImportModal: () => void;
   onOpenInviteSeller: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
@@ -40,6 +42,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   vendors,
   leads,
   metrics,
+  presence,
   onOpenImportModal,
   onOpenInviteSeller,
   onToggleVendorStatus,
@@ -57,6 +60,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   const totalVentas = metrics.closed_won;
   const totalCerradosNoVenta = metrics.closed_lost;
   const totalCerrados = totalVentas + totalCerradosNoVenta;
+  const connectedNow = presence.filter((person) => person.connected).length;
 
   // Compute Average Response Time (minutes from assignedAt to firstGestionAt)
   const contactedLeads = leads.filter((l) => l.firstGestionAt && l.assignedAt);
@@ -118,8 +122,9 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Visión global del pipeline de datos Fox CRM, rendimiento por estructuras de supervisión y SLAs de rotación
+            Visión global de la cartera comercial, rendimiento por estructuras de supervisión y SLAs de rotación
           </p>
+          <p className="mt-1 text-xs font-semibold text-cyan-700">{connectedNow} integrantes conectados ahora</p>
         </div>
 
         <div className="flex gap-2">
