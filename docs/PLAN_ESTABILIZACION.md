@@ -4,7 +4,7 @@ Este plan prioriza seguridad comercial y operación real antes de sumar pantalla
 
 ## P0 — Bloquea la operación o expone información
 
-1. Asignación automática: el cron debe completar cupos activos además de rotar vencimientos. Migración `20261029162000_auto_refill_rotation_cupos.sql`.
+1. Asignación automática: el cron completa cupos activos además de rotar vencimientos. Aplicado mediante `20261029162000_auto_refill_rotation_cupos.sql`; el reloj laboral fue estabilizado en `20261029163000_fix_work_clock_timeout.sql` para que los plazos largos no bloqueen el cron.
 2. Aislamiento de cartera por estructura: Gerencia no debe navegar datos asignados de equipos ajenos; Administración sí puede controlar toda la operación.
 3. Control de usuarios unificado: una sola nómina editable para Administración, incluyendo Administración, Gerencia, Supervisión y Vendedores.
 4. Acciones de cartera para Administración: asignar, reasignar, cerrar y descartar con auditoría; no mostrar una lista pasiva como “rotación en vivo”.
