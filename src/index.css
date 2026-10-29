@@ -91,6 +91,11 @@ html.theme-dark .hover\:bg-slate-200:hover {
   background-color: rgba(34, 76, 106, 0.82) !important;
 }
 
+html.theme-dark .hover\:text-slate-900:hover,
+html.theme-dark .hover\:text-slate-800:hover {
+  color: #f8fbff !important;
+}
+
 html.theme-dark .focus\:bg-white:focus {
   background-color: rgba(4, 22, 38, 0.9) !important;
 }
