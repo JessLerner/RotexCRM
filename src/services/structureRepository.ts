@@ -47,3 +47,12 @@ export async function retireMember(memberId: string, reason = '') {
   const { error } = await supabase.rpc('retire_member', { p_member_id: memberId, p_reason: reason || null });
   if (error) throw error;
 }
+
+export async function retireSupervisor(supervisorId: string, action: 'move_to_supervisor' | 'leave_with_manager' | 'disable_sellers', replacementSupervisorId?: string) {
+  const { error } = await supabase.rpc('retire_supervisor', {
+    p_supervisor_id: supervisorId, p_seller_action: action,
+    p_replacement_supervisor_id: replacementSupervisorId || null,
+    p_reason: 'Baja permanente desde control de estructura',
+  });
+  if (error) throw error;
+}

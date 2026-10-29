@@ -5,6 +5,7 @@ import { OperationalMetrics } from '../services/leadRepository';
 import { PresenceRecord } from '../services/presenceRepository';
 import { PresencePanel } from './PresencePanel';
 import { OperationsOverview } from './OperationsOverview';
+import { StructureSupervisor } from '../services/structureRepository';
 import {
   TrendingUp,
   BarChart3,
@@ -29,6 +30,7 @@ interface GerenciaDashboardProps {
   leads: Lead[];
   metrics: OperationalMetrics;
   presence: PresenceRecord[];
+  supervisors: StructureSupervisor[];
   onOpenImportModal: () => void;
   onOpenInviteSeller: () => void;
   onToggleVendorStatus: (vendorId: string, currentStatus: VendorStatus) => void;
@@ -36,6 +38,7 @@ interface GerenciaDashboardProps {
   onOpenLeadDetail: (lead: Lead) => void;
   onManageVendor: (vendor: Vendor) => void;
   onRetireVendor: (vendor: Vendor) => void;
+  onRetireSupervisor: (supervisor: StructureSupervisor) => void;
 }
 
 export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
@@ -45,6 +48,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   leads,
   metrics,
   presence,
+  supervisors,
   onOpenImportModal,
   onOpenInviteSeller,
   onToggleVendorStatus,
@@ -52,6 +56,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
   onOpenLeadDetail,
   onManageVendor,
   onRetireVendor,
+  onRetireSupervisor,
 }) => {
 
   // Compute Gerencia Statistics
@@ -133,12 +138,12 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
         </div>
       </div>
 
-      <PresencePanel people={presence} title="Conexión de la estructura" />
+      {activeTab === 'structure' && <PresencePanel people={presence} title="Conexión de la estructura" />}
 
-      <OperationsOverview metrics={metrics} title="Operación general" />
+      {activeTab === 'metrics' && <OperationsOverview metrics={metrics} title="Operación general" />}
 
       {/* KPI Cards Row (Gerencia Statistics) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {activeTab === 'metrics' && <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* 1. Datos Cargados */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
           <div className="text-xs text-slate-500 font-medium">Datos Cargados</div>
@@ -194,7 +199,7 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">Operaciones cerradas exitosas</div>
         </div>
-      </div>
+      </div>}
 
       {/* Navigation Sub-Tabs */}
       <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
@@ -254,7 +259,6 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
                   <th className="py-3 px-4 text-center">Asesores Activos</th>
                   <th className="py-3 px-4 text-center">Leads en Gestión</th>
                   <th className="py-3 px-4 text-center">Ventas Confirmadas</th>
-                  <th className="py-3 px-4 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -279,18 +283,6 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
                         {team.totalSales} ventas
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => onToggleSupervisorTeamStatus(team.supervisorName, team.activeVendorsCount === 0)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded border transition-colors ${
-                          team.activeVendorsCount > 0
-                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                        }`}
-                      >
-                        {team.activeVendorsCount > 0 ? 'Pausar Equipo' : 'Activar Equipo'}
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -302,6 +294,20 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
       {/* Tab 2: Control de Estructura (Activar y Desactivar Supervisores y Vendedores) */}
       {activeTab === 'structure' && (
         <div className="space-y-6">
+          <section className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-sm font-bold text-slate-900">Supervisores y equipos</h3>
+              <p className="mt-1 text-xs text-slate-500">Administrá responsables de equipo. La baja permanente pide definir el destino de sus asesores.</p>
+            </div>
+            {supervisors.length === 0 ? <p className="p-6 text-xs text-slate-500">No hay supervisores activos en esta estructura.</p> : <div className="divide-y divide-slate-100">{supervisors.map((supervisor) => {
+              const team = teamsList.find((item) => item.supervisorName.trim().toLowerCase() === supervisor.name.trim().toLowerCase());
+              return <div key={supervisor.id} className="px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="text-sm font-bold text-slate-900">{supervisor.name}</p><p className="mt-0.5 text-xs text-slate-500">{team?.vendors.length || 0} asesores · {team?.activeVendorsCount || 0} activos · {team?.activeLeadsCount || 0} datos en gestión</p></div>
+                <div className="flex gap-2"><button onClick={() => onToggleSupervisorTeamStatus(supervisor.name, true)} className="px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100">Activar equipo</button><button onClick={() => onToggleSupervisorTeamStatus(supervisor.name, false)} className="px-2.5 py-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100">Pausar equipo</button><button onClick={() => onRetireSupervisor(supervisor)} className="px-2.5 py-1.5 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100">Deshabilitar supervisor</button></div>
+              </div>;
+            })}</div>}
+          </section>
+          <div className="px-1"><h3 className="text-sm font-bold text-slate-900">Asesores por equipo</h3><p className="mt-1 text-xs text-slate-500">Pausas, capacidad, cupo diario, reasignación y baja permanente de cada asesor.</p></div>
           {teamsList.map((team) => (
             <div key={team.supervisorName} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
               <div className="px-6 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">

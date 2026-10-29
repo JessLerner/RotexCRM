@@ -18,11 +18,12 @@ import { AuthScreen } from './components/AuthScreen';
 import { InviteSellerModal } from './components/InviteSellerModal';
 import { NoResponseModal } from './components/NoResponseModal';
 import { ManageVendorModal } from './components/ManageVendorModal';
+import { RetireSupervisorModal } from './components/RetireSupervisorModal';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
 import { endPresence, loadPresenceReport, PresenceRecord, touchPresence } from './services/presenceRepository';
-import { loadStructureOptions, MemberStructure, retireMember, setMemberStatus, StructureBrand, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
+import { loadStructureOptions, MemberStructure, retireMember, retireSupervisor, setMemberStatus, StructureBrand, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
 import {
   closeMyLead,
   fillRotationCupos,
@@ -96,6 +97,7 @@ export default function App() {
   const [selectedLeadForClosure, setSelectedLeadForClosure] = useState<Lead | null>(null);
   const [selectedLeadForNoResponse, setSelectedLeadForNoResponse] = useState<Lead | null>(null);
   const [vendorToManage, setVendorToManage] = useState<Vendor | null>(null);
+  const [supervisorToRetire, setSupervisorToRetire] = useState<StructureSupervisor | null>(null);
   const [structureSupervisors, setStructureSupervisors] = useState<StructureSupervisor[]>([]);
   const [structureBrands, setStructureBrands] = useState<StructureBrand[]>([]);
   const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
@@ -487,6 +489,12 @@ export default function App() {
       await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
     } catch (error: any) { window.alert(`No se pudo retirar al asesor: ${error.message}`); }
   };
+  const handleRetireSupervisor = async (action: 'move_to_supervisor' | 'leave_with_manager' | 'disable_sellers', replacementSupervisorId?: string) => {
+    if (!supervisorToRetire) return;
+    await retireSupervisor(supervisorToRetire.id, action, replacementSupervisorId);
+    await fillRotationCupos();
+    await Promise.all([refreshRoster(), refreshOperationalData(), refreshStructureOptions()]);
+  };
 
   // Toggle all vendors under a supervisor
   const handleToggleSupervisorTeamStatus = async (supervisorName: string, activate: boolean) => {
@@ -749,6 +757,7 @@ export default function App() {
             leads={leads}
             metrics={operationalMetrics}
             presence={presence}
+            supervisors={structureSupervisors}
             onOpenImportModal={() => setIsImportModalOpen(true)}
             onOpenInviteSeller={() => setIsInviteSellerOpen(true)}
             onToggleVendorStatus={handleToggleVendorStatus}
@@ -756,6 +765,7 @@ export default function App() {
             onOpenLeadDetail={(lead) => setSelectedLeadForDetail(lead)}
             onManageVendor={(vendor) => setVendorToManage(vendor)}
             onRetireVendor={(vendor) => void handleRetireVendor(vendor)}
+            onRetireSupervisor={(supervisor) => setSupervisorToRetire(supervisor)}
           />
         )}
 
@@ -885,6 +895,13 @@ export default function App() {
         initial={vendorToManage ? getInitialStructure(vendorToManage) : null}
         onClose={() => setVendorToManage(null)}
         onSave={handleSaveVendorStructure}
+      />
+
+      <RetireSupervisorModal
+        supervisor={supervisorToRetire}
+        supervisors={structureSupervisors}
+        onClose={() => setSupervisorToRetire(null)}
+        onConfirm={handleRetireSupervisor}
       />
 
       {isSyncModalOpen && (
