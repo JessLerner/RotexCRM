@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
                 if (currentSession.role === 'vendedor') setActiveTab('assigned');
                 else if (currentSession.role === 'supervisor') setActiveTab('monitoring');
                 else if (currentSession.role === 'gerencia') setActiveTab('metrics');
-                else setActiveTab('leads');
+                else setActiveTab('overview');
               }}
               className="text-left cursor-pointer group focus:outline-none"
             >
@@ -216,6 +216,16 @@ export const Header: React.FC<HeaderProps> = ({
             {/* ADMINISTRACION TABS */}
             {currentSession.role === 'administracion' && (
               <>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`whitespace-nowrap shrink-0 transition-colors py-2 border-b-2 ${
+                    activeTab === 'overview'
+                      ? 'border-blue-600 text-blue-600 font-semibold'
+                      : 'border-transparent hover:text-slate-900'
+                  }`}
+                >
+                  Control Operativo
+                </button>
                 <button
                   onClick={() => setActiveTab('leads')}
                   className={`whitespace-nowrap shrink-0 transition-colors py-2 border-b-2 ${

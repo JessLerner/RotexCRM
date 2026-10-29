@@ -5,6 +5,7 @@ import { VendorsTable } from './components/VendorsTable';
 import { LeadsBoard } from './components/LeadsBoard';
 import { LeadPortfolio } from './components/LeadPortfolio';
 import { StaffDirectory } from './components/StaffDirectory';
+import { AdminControlDashboard } from './components/AdminControlDashboard';
 import { RotationLogsView } from './components/RotationLogsView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { TaskModal } from './components/TaskModal';
@@ -156,7 +157,7 @@ export default function App() {
       setCurrentSession({ id: data.id, name: data.display_name, role: data.role, vendorId: data.role === 'vendedor' ? data.id : undefined, supervisorName: data.role === 'supervisor' ? data.display_name : undefined });
       // A session may be restored after a different role was used. Always land on a valid
       // first view for the authenticated role instead of rendering an empty viewport.
-      setActiveTab(data.role === 'vendedor' ? 'assigned' : data.role === 'supervisor' ? 'monitoring' : data.role === 'gerencia' ? 'metrics' : 'leads');
+      setActiveTab(data.role === 'vendedor' ? 'assigned' : data.role === 'supervisor' ? 'monitoring' : data.role === 'gerencia' ? 'metrics' : 'overview');
       setAuthError(null);
       setAuthLoading(false);
     };
@@ -782,6 +783,15 @@ export default function App() {
         {/* ==================== 4. ADMINISTRACIÓN VIEW ==================== */}
         {currentSession.role === 'administracion' && (
           <>
+            {activeTab === 'overview' && (
+              <AdminControlDashboard
+                metrics={operationalMetrics}
+                presence={presence}
+                vendors={vendors}
+                onOpenPortfolio={() => setActiveTab('leads')}
+                onOpenRoster={() => setActiveTab('vendors')}
+              />
+            )}
             {activeTab === 'leads' && <LeadPortfolio onImport={() => setIsImportModalOpen(true)} onReview={() => setIsImportReviewOpen(true)} />}
 
             {activeTab === 'vendors' && (
