@@ -5,6 +5,7 @@ type RosterProfile = { id: string; display_name: string; role: string; status: V
 type RosterMembership = { profile_id: string; reports_to: string | null; status: VendorStatus; capacity: number; active_assignments?: number; total_conversions?: number };
 type RosterBrand = { profile_id: string; brand_name: string };
 type RosterPayload = { profiles?: RosterProfile[]; memberships?: RosterMembership[]; seller_brands?: RosterBrand[] };
+const WORKING_BRANDS = new Set(['LEAPMOTOR', 'RENAULT', 'PEUGEOT', 'CITROEN', 'JEEP', 'FIAT']);
 
 /** Reads the authoritative personnel roster. No browser fixture is used here. */
 export async function loadRoster(): Promise<Vendor[]> {
@@ -15,7 +16,7 @@ export async function loadRoster(): Promise<Vendor[]> {
   const memberships = new Map((roster.memberships || []).map((membership) => [membership.profile_id, membership]));
   const brands = new Map<string, string[]>();
   for (const item of roster.seller_brands || []) {
-    brands.set(item.profile_id, [...(brands.get(item.profile_id) || []), item.brand_name]);
+    if (WORKING_BRANDS.has(item.brand_name)) brands.set(item.profile_id, [...(brands.get(item.profile_id) || []), item.brand_name]);
   }
 
   return (roster.profiles || [])

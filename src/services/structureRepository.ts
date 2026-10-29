@@ -8,6 +8,7 @@ export type MemberStructure = { supervisorId: string; brandIds: string[]; capaci
 type RosterProfile = { id: string; display_name: string; role: string; status: VendorStatus };
 type RosterMembership = { profile_id: string; reports_to: string | null; capacity: number; daily_target?: number };
 type RosterBrand = { profile_id: string; brand_name: string };
+const WORKING_BRANDS = new Set(['LEAPMOTOR', 'RENAULT', 'PEUGEOT', 'CITROEN', 'JEEP', 'FIAT']);
 
 export async function loadStructureOptions(): Promise<{ supervisors: StructureSupervisor[]; brands: StructureBrand[]; memberships: Map<string, RosterMembership>; brandNames: Map<string, string[]> }> {
   const [{ data: rosterData, error: rosterError }, { data: brandsData, error: brandsError }] = await Promise.all([
@@ -19,7 +20,9 @@ export async function loadStructureOptions(): Promise<{ supervisors: StructureSu
   const roster = (rosterData || {}) as { profiles?: RosterProfile[]; memberships?: RosterMembership[]; seller_brands?: RosterBrand[] };
   const memberships = new Map((roster.memberships || []).map((item) => [item.profile_id, item]));
   const brandNames = new Map<string, string[]>();
-  for (const item of roster.seller_brands || []) brandNames.set(item.profile_id, [...(brandNames.get(item.profile_id) || []), item.brand_name]);
+  for (const item of roster.seller_brands || []) {
+    if (WORKING_BRANDS.has(item.brand_name)) brandNames.set(item.profile_id, [...(brandNames.get(item.profile_id) || []), item.brand_name]);
+  }
   return {
     supervisors: (roster.profiles || []).filter((profile) => profile.role === 'supervisor' && profile.status === 'active').map((profile) => ({ id: profile.id, name: profile.display_name })),
     brands: (brandsData || []) as StructureBrand[], memberships, brandNames,

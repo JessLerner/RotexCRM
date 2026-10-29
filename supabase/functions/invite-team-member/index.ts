@@ -13,14 +13,46 @@ Deno.serve(async (request) => {
     const callerClient = createClient(url, anon, { global: { headers: { Authorization: authorization } } });
     const { data: { user }, error: authError } = await callerClient.auth.getUser();
     if (authError || !user) throw new Error('Sesión inválida');
-    const { name, email, capacity = 15, dailyTarget = 5, supervisorId: requestedSupervisorId, brandIds: requestedBrandIds } = await request.json();
+    const { name, email, capacity = 15, dailyTarget = 5, role = 'vendedor', supervisorId: requestedSupervisorId, brandIds: requestedBrandIds } = await request.json();
     if (!name?.trim() || !email?.trim()) throw new Error('Nombre y correo son obligatorios');
+    if (!['vendedor', 'supervisor'].includes(role)) throw new Error('Rol de invitación inválido');
 
     const admin = createClient(url, serviceKey);
     const { data: caller } = await admin.from('profiles').select('role, status').eq('id', user.id).single();
     if (!caller || caller.status !== 'active' || !['supervisor', 'gerencia', 'administracion'].includes(caller.role)) throw new Error('No tenés permiso para invitar asesores');
-    const { data: membership } = await admin.from('team_memberships').select('team_id').eq('profile_id', user.id).is('left_at', null).maybeSingle();
+    let { data: membership } = await admin.from('team_memberships').select('team_id').eq('profile_id', user.id).is('left_at', null).maybeSingle();
+    if (!membership && caller.role === 'administracion') {
+      const { data: teams } = await admin.from('teams').select('id').eq('active', true).limit(2);
+      if ((teams || []).length !== 1) throw new Error('Administración debe elegir un equipo cuando existe más de uno');
+      membership = { team_id: teams![0].id };
+    }
     if (!membership) throw new Error('Tu perfil todavía no tiene un equipo asignado');
+
+    if (role === 'supervisor') {
+      if (caller.role === 'supervisor') throw new Error('Un supervisor no puede crear otro supervisor');
+      let managerId = user.id;
+      if (caller.role === 'administracion') {
+        const { data: managers } = await admin.from('team_memberships').select('profile_id').eq('team_id', membership.team_id).is('left_at', null);
+        const managerIds = (managers || []).map(({ profile_id }) => profile_id);
+        const { data: manager } = await admin.from('profiles').select('id').in('id', managerIds).eq('role', 'gerencia').eq('status', 'active').limit(1).maybeSingle();
+        if (!manager) throw new Error('El equipo necesita una Gerencia activa antes de crear supervisores');
+        managerId = manager.id;
+      }
+      if (!Array.isArray(requestedBrandIds) || requestedBrandIds.length === 0) throw new Error('Seleccioná al menos una marca para el supervisor');
+      const { data: requestedBrands } = await admin.from('brands').select('id').in('id', requestedBrandIds).eq('active', true);
+      if ((requestedBrands || []).length !== requestedBrandIds.length) throw new Error('Una de las marcas seleccionadas no está disponible');
+      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
+      const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), { data: { display_name: name.trim() }, redirectTo: `${appUrl}/auth/activate` });
+      if (inviteError || !invited.user) throw new Error(inviteError?.message || 'No se pudo enviar la invitación');
+      const profileId = invited.user.id;
+      const { error: profileError } = await admin.from('profiles').upsert({ id: profileId, display_name: name.trim(), role: 'supervisor', status: 'active' });
+      if (profileError) throw profileError;
+      const { error: teamError } = await admin.from('team_memberships').insert({ profile_id: profileId, team_id: membership.team_id, reports_to: managerId, status: 'active', capacity: Math.max(1, Math.min(Number(capacity) || 15, 100)), daily_target: Math.max(1, Math.min(Number(dailyTarget) || 5, 10)) });
+      if (teamError) throw teamError;
+      const { error: brandError } = await admin.from('seller_brands').insert(requestedBrands!.map(({ id }) => ({ profile_id: profileId, brand_id: id })));
+      if (brandError) throw brandError;
+      return Response.json({ ok: true }, { headers: corsHeaders });
+    }
     let supervisorId = user.id;
     if (caller.role !== 'supervisor') {
       const { data: members } = await admin.from('team_memberships').select('profile_id').eq('team_id', membership.team_id).is('left_at', null);

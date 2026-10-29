@@ -492,6 +492,7 @@ export default function App() {
     name: string;
     email: string;
     maxAssignments: number;
+    role?: 'vendedor' | 'supervisor';
     supervisorId?: string;
     brandIds?: string[];
     dailyTarget?: number;

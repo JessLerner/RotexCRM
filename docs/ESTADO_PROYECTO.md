@@ -9,6 +9,7 @@ Actualizado: 28 de octubre de 2026. Este documento ordena el trabajo realizado, 
 - Un asesor creado por un supervisor hereda la marca del supervisor. La marca solo debería poder modificarse por Administración o Gerencia.
 - La importación Fox acepta los campos `Telefono` y `Celular`: se usa el primer número válido disponible.
 - La marca se obtiene en este orden: `Marca` explícita, modelo reconocido y, si falta todo, cartera general sin marca. No se debe asumir Peugeot por defecto.
+- Las únicas marcas operativas son: LEAPMOTOR, RENAULT, PEUGEOT, CITROEN, JEEP y FIAT. Etiquetas ambiguas o ajenas de Fox pasan a cartera general; modelos conocidos se normalizan a una de esas marcas.
 - Los datos sin marca podrán ser gestionados por cualquier asesor cuando exista el motor real de asignación.
 - No se utilizará Parte Diario/Google Sheets como mecanismo de producción hasta que tenga una integración real de servidor.
 
