@@ -4,6 +4,7 @@ import { VendorsBar } from './components/VendorsBar';
 import { VendorsTable } from './components/VendorsTable';
 import { LeadsBoard } from './components/LeadsBoard';
 import { LeadPortfolio } from './components/LeadPortfolio';
+import { StaffDirectory } from './components/StaffDirectory';
 import { RotationLogsView } from './components/RotationLogsView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { TaskModal } from './components/TaskModal';
@@ -25,7 +26,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { importFoxLeads } from './services/foxImportRepository';
 import { loadRoster } from './services/rosterRepository';
 import { endPresence, loadPresenceReport, PresenceRecord, touchPresence } from './services/presenceRepository';
-import { loadStructureOptions, MemberStructure, retireMember, retireSupervisor, setMemberStatus, StructureBrand, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
+import { loadStructureOptions, MemberStructure, retireMember, retireSupervisor, setMemberStatus, StructureBrand, StructurePerson, StructureSupervisor, updateMemberStructure } from './services/structureRepository';
 import {
   closeMyLead,
   fillRotationCupos,
@@ -102,6 +103,7 @@ export default function App() {
   const [vendorToManage, setVendorToManage] = useState<Vendor | null>(null);
   const [supervisorToRetire, setSupervisorToRetire] = useState<StructureSupervisor | null>(null);
   const [structureSupervisors, setStructureSupervisors] = useState<StructureSupervisor[]>([]);
+  const [structurePeople, setStructurePeople] = useState<StructurePerson[]>([]);
   const [structureBrands, setStructureBrands] = useState<StructureBrand[]>([]);
   const [memberStructures, setMemberStructures] = useState<Map<string, { reports_to: string | null; capacity: number; daily_target?: number }>>(new Map());
   const [memberBrandNames, setMemberBrandNames] = useState<Map<string, string[]>>(new Map());
@@ -127,6 +129,7 @@ export default function App() {
     if (!isSupabaseConfigured) return;
     const options = await loadStructureOptions();
     setStructureSupervisors(options.supervisors);
+    setStructurePeople(options.people);
     setStructureBrands(options.brands);
     setMemberStructures(options.memberships);
     setMemberBrandNames(options.brandNames);
@@ -532,7 +535,7 @@ export default function App() {
     name: string;
     email: string;
     maxAssignments: number;
-    role?: 'vendedor' | 'supervisor';
+    role?: 'vendedor' | 'supervisor' | 'gerencia' | 'administracion';
     supervisorId?: string;
     brandIds?: string[];
     dailyTarget?: number;
@@ -783,6 +786,7 @@ export default function App() {
 
             {activeTab === 'vendors' && (
               <div className="space-y-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6"><StaffDirectory people={structurePeople} /></div>
                 <VendorsBar
                   vendors={vendors}
                   statusFilter={vendorStatusFilter}

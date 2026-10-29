@@ -15,7 +15,7 @@ Deno.serve(async (request) => {
     if (authError || !user) throw new Error('Sesión inválida');
     const { name, email, capacity = 15, dailyTarget = 5, role = 'vendedor', supervisorId: requestedSupervisorId, brandIds: requestedBrandIds } = await request.json();
     if (!name?.trim() || !email?.trim()) throw new Error('Nombre y correo son obligatorios');
-    if (!['vendedor', 'supervisor'].includes(role)) throw new Error('Rol de invitación inválido');
+    if (!['vendedor', 'supervisor', 'gerencia', 'administracion'].includes(role)) throw new Error('Rol de invitación inválido');
 
     const admin = createClient(url, serviceKey);
     const { data: caller } = await admin.from('profiles').select('role, status').eq('id', user.id).single();
@@ -27,6 +27,19 @@ Deno.serve(async (request) => {
       membership = { team_id: teams![0].id };
     }
     if (!membership) throw new Error('Tu perfil todavía no tiene un equipo asignado');
+
+    if (role === 'gerencia' || role === 'administracion') {
+      if (caller.role !== 'administracion') throw new Error('Solo Administración puede crear perfiles de Gerencia o Administración');
+      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
+      const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), { data: { display_name: name.trim() }, redirectTo: `${appUrl}/auth/activate` });
+      if (inviteError || !invited.user) throw new Error(inviteError?.message || 'No se pudo enviar la invitación');
+      const profileId = invited.user.id;
+      const { error: profileError } = await admin.from('profiles').upsert({ id: profileId, display_name: name.trim(), role, status: 'active' });
+      if (profileError) throw profileError;
+      const { error: teamError } = await admin.from('team_memberships').insert({ profile_id: profileId, team_id: membership.team_id, reports_to: role === 'gerencia' ? user.id : null, status: 'active', capacity: 0, daily_target: 1 });
+      if (teamError) throw teamError;
+      return Response.json({ ok: true }, { headers: corsHeaders });
+    }
 
     if (role === 'supervisor') {
       if (caller.role === 'supervisor') throw new Error('Un supervisor no puede crear otro supervisor');

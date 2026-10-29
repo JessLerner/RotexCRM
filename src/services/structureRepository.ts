@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { VendorStatus } from '../types/crm';
 
 export type StructureSupervisor = { id: string; name: string };
+export type StructurePerson = { id: string; name: string; role: string; status: VendorStatus };
 export type StructureBrand = { id: string; name: string };
 export type MemberStructure = { supervisorId: string; brandIds: string[]; capacity: number; dailyTarget: number };
 
@@ -10,7 +11,7 @@ type RosterMembership = { profile_id: string; reports_to: string | null; capacit
 type RosterBrand = { profile_id: string; brand_name: string };
 const WORKING_BRANDS = new Set(['LEAPMOTOR', 'RENAULT', 'PEUGEOT', 'CITROEN', 'JEEP', 'FIAT']);
 
-export async function loadStructureOptions(): Promise<{ supervisors: StructureSupervisor[]; brands: StructureBrand[]; memberships: Map<string, RosterMembership>; brandNames: Map<string, string[]> }> {
+export async function loadStructureOptions(): Promise<{ supervisors: StructureSupervisor[]; people: StructurePerson[]; brands: StructureBrand[]; memberships: Map<string, RosterMembership>; brandNames: Map<string, string[]> }> {
   const [{ data: rosterData, error: rosterError }, { data: brandsData, error: brandsError }] = await Promise.all([
     supabase.rpc('get_roster'),
     supabase.from('brands').select('id, name').eq('active', true).order('name'),
@@ -25,6 +26,7 @@ export async function loadStructureOptions(): Promise<{ supervisors: StructureSu
   }
   return {
     supervisors: (roster.profiles || []).filter((profile) => profile.role === 'supervisor' && profile.status === 'active').map((profile) => ({ id: profile.id, name: profile.display_name })),
+    people: (roster.profiles || []).map((profile) => ({ id: profile.id, name: profile.display_name, role: profile.role, status: profile.status })),
     brands: (brandsData || []) as StructureBrand[], memberships, brandNames,
   };
 }

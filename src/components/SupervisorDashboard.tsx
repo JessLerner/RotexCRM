@@ -174,13 +174,13 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
         </div>
       )}
 
-      <PresencePanel
+      {activeTab === 'team' && <PresencePanel
         people={teamPresence}
         title="Conexión de mi equipo"
         emptyMessage="Tus asesores todavía no registraron actividad en la plataforma."
-      />
+      />}
 
-      <OperationsOverview metrics={metrics} title="Operación de mi equipo" />
+      {activeTab === 'monitoring' && <OperationsOverview metrics={metrics} title="Operación de mi equipo" />}
 
       {/* Tabs */}
       <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
