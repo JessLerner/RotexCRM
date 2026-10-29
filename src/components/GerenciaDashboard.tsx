@@ -3,6 +3,7 @@ import { Lead, Vendor, VendorStatus } from '../types/crm';
 import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
 import { PresenceRecord } from '../services/presenceRepository';
+import { PresencePanel } from './PresencePanel';
 import {
   TrendingUp,
   BarChart3,
@@ -132,6 +133,8 @@ export const GerenciaDashboard: React.FC<GerenciaDashboardProps> = ({
           <button onClick={onOpenImportModal} className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors shrink-0"><Upload className="w-4 h-4" /><span>Importar Datos para Mi Estructura</span></button>
         </div>
       </div>
+
+      <PresencePanel people={presence} title="Conexión de la estructura" />
 
       {/* KPI Cards Row (Gerencia Statistics) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">

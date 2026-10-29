@@ -4,6 +4,7 @@ import { LiveTimer } from './LiveTimers';
 import { RankingsView } from './RankingsView';
 import { OperationalMetrics } from '../services/leadRepository';
 import { PresenceRecord } from '../services/presenceRepository';
+import { PresencePanel } from './PresencePanel';
 import {
   Users,
   Clock,
@@ -94,6 +95,7 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   const activeSellersCount = myVendors.filter((v) => v.status === 'active').length;
   const teamSalesCount = myVendors.reduce((acc, v) => acc + (v.totalConversions || 0), 0);
   const connectedTeamCount = presence.filter((person) => person.connected && myVendorIds.has(person.profile_id)).length;
+  const teamPresence = presence.filter((person) => myVendorIds.has(person.profile_id));
 
   const handleCreateVendor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +172,12 @@ export const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
           </div>
         </div>
       )}
+
+      <PresencePanel
+        people={teamPresence}
+        title="Conexión de mi equipo"
+        emptyMessage="Tus asesores todavía no registraron actividad en la plataforma."
+      />
 
       {/* Tabs */}
       <div className="hidden flex items-center gap-4 border-b border-slate-200 text-xs font-semibold">
