@@ -58,8 +58,8 @@ La migración debe aplicarse antes de publicar el frontend que la utiliza.
 - [ ] Cloudflare terminó correctamente el último despliegue posterior a los arreglos de `AuthScreen`.
 - [ ] Se aplicó la migración `20261028145000_fix_import_queue_rpc.sql` y se visualizan leads en la aplicación.
 - [ ] La Edge Function `invite-team-member` aparece publicada en Supabase y una invitación crea el usuario/perfil esperado.
-- [ ] La URL final de Cloudflare se cambió de `rotexcrm.jlerner-nave.workers.dev` a `rotexcrm.naveplanes.workers.dev`.
-- [ ] En Supabase Auth, `Site URL` y la URL de redirección apuntan a la dirección final, incluyendo `/auth/activate`.
+- [x] La URL pública final es `rotexcrm.naveplan.workers.dev`.
+- [ ] En Supabase Auth, `Site URL` y la URL de redirección apuntan a `https://rotexcrm.naveplan.workers.dev`, incluyendo `/auth/activate`.
 - [ ] Se volvieron a pegar las dos plantillas de correo después del cambio de URL para que los logos carguen desde el dominio correcto.
 
 ## Pendientes prioritarios

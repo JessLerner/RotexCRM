@@ -30,7 +30,7 @@ Deno.serve(async (request) => {
 
     if (role === 'gerencia' || role === 'administracion') {
       if (caller.role !== 'administracion') throw new Error('Solo Administración puede crear perfiles de Gerencia o Administración');
-      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
+      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplan.workers.dev';
       const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), { data: { display_name: name.trim() }, redirectTo: `${appUrl}/auth/activate` });
       if (inviteError || !invited.user) throw new Error(inviteError?.message || 'No se pudo enviar la invitación');
       const profileId = invited.user.id;
@@ -54,7 +54,7 @@ Deno.serve(async (request) => {
       if (!Array.isArray(requestedBrandIds) || requestedBrandIds.length === 0) throw new Error('Seleccioná al menos una marca para el supervisor');
       const { data: requestedBrands } = await admin.from('brands').select('id').in('id', requestedBrandIds).eq('active', true);
       if ((requestedBrands || []).length !== requestedBrandIds.length) throw new Error('Una de las marcas seleccionadas no está disponible');
-      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
+      const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplan.workers.dev';
       const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), { data: { display_name: name.trim() }, redirectTo: `${appUrl}/auth/activate` });
       if (inviteError || !invited.user) throw new Error(inviteError?.message || 'No se pudo enviar la invitación');
       const profileId = invited.user.id;
@@ -85,7 +85,7 @@ Deno.serve(async (request) => {
       brandIds = requestedBrands!.map(({ id }) => id);
     }
 
-    const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplanes.workers.dev';
+    const appUrl = Deno.env.get('ROTEX_APP_URL') || 'https://rotexcrm.naveplan.workers.dev';
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
       data: { display_name: name.trim() },
       redirectTo: `${appUrl}/auth/activate`,

@@ -4,7 +4,7 @@ Actualizado: 29 de octubre de 2026. Este documento permite pausar Rotex sin perd
 
 ## Estado actual
 
-La aplicación está publicada en `https://rotexcrm.naveplanes.workers.dev` y el código más reciente publicado es el commit `e96fdaa` (`feat: add anonymized seller sales history`).
+La aplicación está publicada en `https://rotexcrm.naveplan.workers.dev`.
 
 El build de Vite pasó localmente antes de la última publicación. Cloudflare realiza el despliegue desde la rama `Master`.
 
